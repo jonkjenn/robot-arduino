@@ -1,4 +1,6 @@
 #include <QTRSensors.h>
+#include <Servo.h>
+#include <PID_v1.h>
 
 // This example is designed for use with eight QTR-1RC sensors or the eight sensors of a
 // QTR-8RC module.  These reflectance sensors should be connected to digital inputs 3 to 10.
@@ -6,10 +8,26 @@
 // or you can leave it disconnected and change the EMITTER_PIN #define below from 2 to 
 // QTR_NO_EMITTER_PIN.
 
-// The main loop of the example reads the raw sensor values (uncalibrated).
-// You can test this by taping a piece of 3/4" black electrical tape to a piece of white 
-// paper and sliding the sensor across it.  It prints the sensor values to the serial 
-// monitor as numbers from 0 (maximum reflectance) to 2500 (minimum reflectance).
+// The setup phase of this example calibrates the sensor for ten seconds and turns on
+// the LED built in to the Arduino on pin 13 while calibration is going on.
+// During this phase, you should expose each reflectance sensor to the lightest and 
+// darkest readings they will encounter.
+// For example, if you are making a line follower, you should slide the sensors across the
+// line during the calibration phase so that each sensor can get a reading of how dark the
+// line is and how light the ground is.  Improper calibration will result in poor readings.
+// If you want to skip the calibration phase, you can get the raw sensor readings
+// (pulse times from 0 to 2500 us) by calling qtrrc.read(sensorValues) instead of
+// qtrrc.readLine(sensorValues).
+
+// The main loop of the example reads the calibrated sensor values and uses them to
+// estimate the position of a line.  You can test this by taping a piece of 3/4" black
+// electrical tape to a piece of white paper and sliding the sensor across it.  It
+// prints the sensor values to the serial monitor as numbers from 0 (maximum reflectance) 
+// to 1000 (minimum reflectance) followed by the estimated location of the line as a number
+// from 0 to 5000.  1000 means the line is directly under sensor 1, 2000 means directly
+// under sensor 2, etc.  0 means the line is directly under sensor 0 or was last seen by
+// sensor 0 before being lost.  5000 means the line is directly under sensor 5 or was
+// last seen by sensor 5 before being lost.
 
 
 #define NUM_SENSORS   8     // number of sensors used
@@ -20,30 +38,144 @@
 QTRSensorsRC qtrrc((unsigned char[]) {22, 24, 26, 28, 30, 32, 34, 36},
   NUM_SENSORS, TIMEOUT, EMITTER_PIN); 
 unsigned int sensorValues[NUM_SENSORS];
+Servo ST1,ST2;//ST1 left motor, ST2 right motor
 
+//unsigned int preCalibratedMin[] = {800, 588, 488, 532, 536, 536, 580, 812};
+unsigned int preCalibratedMin[] = {2500, 2112, 1830, 1950, 1950, 1850, 1828, 2324};
+unsigned int preCalibratedMax = 2500;
+
+
+double pid_SetPoint,pid_Input,pid_Output;
+double aggKp=10, aggKi=0.4, aggKd=1.25;
+double consKp=1, consKi=0.01, consKd=0.20;
+PID myPID(&pid_Input, &pid_Output, &pid_SetPoint,consKp,consKi,consKd,DIRECT);
+
+unsigned int maxPower = 130;
+unsigned int minPower = 90;//stand still
+unsigned int power_range = maxPower - minPower;
+
+//Turn within the limits of maxpower and minpower
+//Direction 0-255, 0-127 towards right, 129-255 towards left, about.
+void do_turn(int direction)
+{
+  if(direction < 128)
+  {
+    double nDirection = (double)(128.0 - direction)/128.0;
+    ST1.write(minPower + nDirection*power_range);
+    ST2.write(maxPower - nDirection*power_range);
+  }
+  else
+  {
+    double nDirection = (double)(direction-128.0)/128.0;
+    ST2.write(minPower + nDirection*power_range);
+    ST1.write(maxPower - nDirection*power_range);
+  }
+  
+}
 
 void setup()
 {
   delay(500);
-  Serial.begin(9600); // set the data rate in bits per second for serial data transmission
+  
+  ST1.attach(7,1000,2000);
+  ST2.attach(8,1000,2000);
+  
+  pinMode(13, OUTPUT);
+  digitalWrite(13, HIGH);    // turn on Arduino's LED to indicate we are in calibration mode
+  for (int i = 0; i < 1; i++)  // make the calibration take about 10 seconds
+  {
+    qtrrc.calibrate();       // reads all sensors 10 times at 2500 us per read (i.e. ~25 ms per call)
+  }
+  
+  for(int i=0;i<NUM_SENSORS;i++)
+  {
+    qtrrc.calibratedMinimumOn[i] = preCalibratedMin[i];
+    qtrrc.calibratedMaximumOn[i] = preCalibratedMax;
+  }
+  
+  digitalWrite(13, LOW);     // turn off Arduino's LED to indicate we are through with calibration
+
+  // print the calibration minimum values measured when emitters were on
+  Serial.begin(9600);
+  for (int i = 0; i < NUM_SENSORS; i++)
+  {
+    Serial.print(qtrrc.calibratedMinimumOn[i]);
+    Serial.print(' ');
+  }
+  Serial.println();
+  
+  // print the calibration maximum values measured when emitters were on
+/*  for (int i = 0; i < NUM_SENSORS; i++)
+  {
+    Serial.print(qtrrc.calibratedMinimumOff[i]);
+    Serial.print(' ');
+  }*/
+  Serial.println();
+    for (int i = 0; i < NUM_SENSORS; i++)
+  {
+    Serial.print(qtrrc.calibratedMaximumOn[i]);
+    Serial.print(' ');
+  }
+  Serial.println();
+/*  for (int i = 0; i < NUM_SENSORS; i++)
+  {
+    Serial.print(qtrrc.calibratedMaximumOff[i]);
+    Serial.print(' ');
+  }
+  Serial.println();*/
+
+  unsigned int position = qtrrc.readLine(sensorValues);
+  
+  pid_Input = position;
+  pid_SetPoint = 3500;
+  myPID.SetMode(AUTOMATIC);
+  
+  Serial.println();
+
   delay(1000);
-}
+  }
 
 
 void loop()
 {
-  // read raw sensor values
-  qtrrc.read(sensorValues);
+  // read calibrated sensor values and obtain a measure of the line position from 0 to 5000
+  // To get raw sensor values, call:
+  //  qtrrc.read(sensorValues); instead of unsigned int position = qtrrc.readLine(sensorValues);
+  unsigned int position = qtrrc.readLine(sensorValues);
 
-  // print the sensor values as numbers from 0 to 2500, where 0 means maximum reflectance and
-  // 1023 means minimum reflectance
+  if(position >= 7000 || position ==0)
+  {
+    ST1.write(90);
+    ST2.write(90);
+    return;
+  }
+
+  // print the sensor values as numbers from 0 to 1000, where 0 means maximum reflectance and
+  // 1000 means minimum reflectance, followed by the line position
   for (unsigned char i = 0; i < NUM_SENSORS; i++)
   {
     Serial.print(sensorValues[i]);
-    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
+    Serial.print('\t');
   }
-  Serial.println();
+  //Serial.println(); // uncomment this line if you are using raw values
   
-  delayMicroseconds(50);
+  Serial.println(position); // comment this line out if you are using raw values
+  
+  pid_Input = position;
+  double gap =abs(pid_SetPoint-pid_Input);
+  if(gap<2500)
+  {
+    myPID.SetTunings(consKp,consKi,consKd);
+  }
+  else
+  {
+    myPID.SetTunings(aggKp,aggKi,aggKd);
+  }
+  myPID.Compute();
+  
+  do_turn(pid_Output);
+  
+  Serial.println("PID output: " + String(pid_Output));
+    
 }
 
