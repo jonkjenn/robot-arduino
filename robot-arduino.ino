@@ -29,7 +29,6 @@
 // sensor 0 before being lost.  5000 means the line is directly under sensor 5 or was
 // last seen by sensor 5 before being lost.
 
-
 #define NUM_SENSORS   8     // number of sensors used
 #define TIMEOUT       2500  // waits for 2500 microseconds for sensor outputs to go low
 #define EMITTER_PIN   2     // emitter is controlled by digital pin 2
@@ -44,31 +43,39 @@ Servo ST1,ST2;//ST1 left motor, ST2 right motor
 unsigned int preCalibratedMin[] = {2500, 2112, 1830, 1950, 1950, 1850, 1828, 2324};
 unsigned int preCalibratedMax = 2500;
 
-
 double pid_SetPoint,pid_Input,pid_Output;
 double aggKp=10, aggKi=0.4, aggKd=1.25;
-double consKp=1, consKi=0.01, consKd=0.20;
+double consKp=0.1, consKi=0.0, consKd=0.0;
 PID myPID(&pid_Input, &pid_Output, &pid_SetPoint,consKp,consKi,consKd,DIRECT);
 
 unsigned int maxPower = 130;
-unsigned int minPower = 90;//stand still
+unsigned int stopPower = 90;
+unsigned int minPower = 60;//stand still
 unsigned int power_range = maxPower - minPower;
 
 //Turn within the limits of maxpower and minpower
-//Direction 0-255, 0-127 towards right, 129-255 towards left, about.
+//NO Direction 0-255, 0-127 towards right, 129-255 towards left, about.
+//Direction -256-255 negativ right, positiv left
 void do_turn(int direction)
 {
-  if(direction < 128)
+    double nDirection = (double)(direction)/256.0;
+    Serial.println("nDirection: " + String(nDirection));
+    
+  if(direction < 0)
   {
-    double nDirection = (double)(128.0 - direction)/128.0;
-    ST1.write(minPower + nDirection*power_range);
-    ST2.write(maxPower - nDirection*power_range);
+    //unsigned int power1 = minPower - nDirection*power_range;
+    unsigned int power2 = maxPower + nDirection*power_range;
+    Serial.println("Turn right P1: " + String(maxPower) + " P2: " + String(power2)); 
+    ST1.write(maxPower);
+    ST2.write(power2);
   }
   else
   {
-    double nDirection = (double)(direction-128.0)/128.0;
-    ST2.write(minPower + nDirection*power_range);
-    ST1.write(maxPower - nDirection*power_range);
+//    unsigned int power2 = minPower + nDirection*power_range;
+    unsigned int power1 = maxPower - nDirection*power_range;
+    Serial.println("Turn left P1: " + String(power1) + " P2: " + String(maxPower)); 
+    ST2.write(maxPower);
+    ST1.write(power1);
   }
   
 }
@@ -96,7 +103,7 @@ void setup()
   digitalWrite(13, LOW);     // turn off Arduino's LED to indicate we are through with calibration
 
   // print the calibration minimum values measured when emitters were on
-  Serial.begin(9600);
+  Serial.begin(115200);
   for (int i = 0; i < NUM_SENSORS; i++)
   {
     Serial.print(qtrrc.calibratedMinimumOn[i]);
@@ -145,8 +152,8 @@ void loop()
 
   if(position >= 7000 || position ==0)
   {
-    ST1.write(90);
-    ST2.write(90);
+    ST1.write(stopPower);
+    ST2.write(stopPower);
     return;
   }
 
@@ -162,20 +169,23 @@ void loop()
   Serial.println(position); // comment this line out if you are using raw values
   
   pid_Input = position;
-  double gap =abs(pid_SetPoint-pid_Input);
-  if(gap<2500)
+//  double gap =abs(pid_SetPoint-pid_Input);
+
+/*  if(gap<2500)
   {
     myPID.SetTunings(consKp,consKi,consKd);
   }
   else
   {
     myPID.SetTunings(aggKp,aggKi,aggKd);
+  }*/
+  if(myPID.Compute())
+  {
+    do_turn(pid_Output);
+      Serial.println("PID output: " + String(pid_Output));
   }
-  myPID.Compute();
   
-  do_turn(pid_Output);
-  
-  Serial.println("PID output: " + String(pid_Output));
+
     
 }
 
