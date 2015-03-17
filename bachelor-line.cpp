@@ -3,15 +3,15 @@
 using namespace std;
 using namespace bachelor;
 
-void LineFollower::setup()
+void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin)
 {
     Serial.println("Starting linefollower");
     unsigned char sensor_pins[8] =  {22, 24, 26, 28, 30, 32, 34, 36};
     qtrrc = new QTRSensorsRC(sensor_pins,
             NUM_SENSORS, TIMEOUT, EMITTER_PIN); 
     myPID = new PID(&pid_Input, &pid_Output, &pid_SetPoint,consKp,consKi,consKd,DIRECT);
-    ST1.attach(7,1000,2000);
-    ST2.attach(8,1000,2000);
+    ST1.attach(ST1_pin,1000,2000);
+    ST2.attach(ST2_pin,1000,2000);
 
     pinMode(13, OUTPUT);
     digitalWrite(13, HIGH);    // turn on Arduino's LED to indicate we are in calibration mode

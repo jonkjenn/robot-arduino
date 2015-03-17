@@ -54,9 +54,9 @@ class LineFollower{
         double consKp=0.1, consKi=0.0, consKd=0.0;
         PID *myPID;
 
-        unsigned int maxPower = 130;
-        unsigned int stopPower = 90;
-        unsigned int minPower = 60;//stand still
+        unsigned int maxPower = 120;
+        unsigned int stopPower = 90;//stand still
+        unsigned int minPower = 70;
         unsigned int power_range = maxPower - minPower;
 
         void do_turn(int direction);
@@ -64,7 +64,7 @@ class LineFollower{
 
         public:
             void update();
-            void setup();
+            void setup(unsigned int ST1_pin, unsigned int ST2_pin);
 };
 
 }
