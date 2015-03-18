@@ -63,12 +63,14 @@ class LineFollower{
         void do_turn(int direction);
 
         int previous_position = -1;
+        unsigned int position = 0;
 
         unsigned int previous_update = 0;
 
         Drive *_driver;
 
         const int debug = 0;
+        int result_ready = -1;
 
         public:
             void update();

@@ -58,14 +58,13 @@ void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driv
         }
         Serial.println();*/
 
-    unsigned int position = qtrrc->readLine(sensorValues);
+    /*unsigned int position = qtrrc->readLine(sensorValues);
 
-    pid_Input = position;
+    pid_Input = position;*/
     pid_SetPoint = 3500;
     myPID->SetMode(AUTOMATIC);
 
     Serial.println();
-
 }
 
 //Turn within the limits of maxpower and minpower
@@ -99,7 +98,18 @@ void LineFollower::update()
     //read calibrated sensor values and obtain a measure of the line position from 0 to 5000
     // To get raw sensor values, call:
     //  qtrrc.read(sensorValues); instead of unsigned int position = qtrrc.readLine(sensorValues);
-    unsigned int position = qtrrc->readLine(sensorValues);
+    if(result_ready<0)
+    {
+        qtrrc->readLine(sensorValues, QTR_EMITTERS_ON,0, &position, &result_ready);
+        return;
+    }
+    else if(result_ready == 0)
+    {
+        return;
+    }
+
+    result_ready = -1;//Next round we will restart readline process
+
     //unsigned int position = 1;
     //qtrrc->read(sensorValues);
     if(debug){Serial.println("Position: " + String(position));}

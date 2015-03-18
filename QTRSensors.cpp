@@ -78,8 +78,7 @@ void QTRSensors::init(unsigned char *pins, unsigned char numSensors,
 // surface or a void).
 void QTRSensors::read(unsigned int *sensor_values, unsigned char readMode)
 {
-    unsigned int off_values[QTR_MAX_SENSORS];
-    unsigned char i;
+    _readMode = readMode;
 
     if(readMode == QTR_EMITTERS_ON || readMode == QTR_EMITTERS_ON_AND_OFF)
         emittersOn();
@@ -87,9 +86,17 @@ void QTRSensors::read(unsigned int *sensor_values, unsigned char readMode)
         emittersOff();
 
     readPrivate(sensor_values);
+
+}
+
+void QTRSensorsRC::HandleReadComplete()
+{
+    unsigned int off_values[QTR_MAX_SENSORS];
+    unsigned char i;
+
     emittersOff();
 
-    if(readMode == QTR_EMITTERS_ON_AND_OFF)
+    if(_readMode == QTR_EMITTERS_ON_AND_OFF)
     {
         readPrivate(off_values);
 
@@ -98,6 +105,7 @@ void QTRSensors::read(unsigned int *sensor_values, unsigned char readMode)
             sensor_values[i] += _maxValue - off_values[i];
         }
     }
+    if(step){step++;}
 }
 
 
@@ -232,7 +240,7 @@ void QTRSensors::calibrateOnOrOff(unsigned int **calibratedMinimum,
 // sensors are accounted for automatically.
 void QTRSensors::readCalibrated(unsigned int *sensor_values, unsigned char readMode)
 {
-    int i;
+    _readMode = readMode;
 
     // if not calibrated, do nothing
     if(readMode == QTR_EMITTERS_ON_AND_OFF || readMode == QTR_EMITTERS_OFF)
@@ -245,18 +253,23 @@ void QTRSensors::readCalibrated(unsigned int *sensor_values, unsigned char readM
     // read the needed values
     read(sensor_values,readMode);
 
-    for(i=0;i<_numSensors;i++)
+}
+
+
+void QTRSensorsRC::HandleReadCalibratedResults()
+{
+    for(int i=0;i<_numSensors;i++)
     {
         unsigned int calmin,calmax;
         unsigned int denominator;
 
         // find the correct calibration
-        if(readMode == QTR_EMITTERS_ON)
+        if(_readMode == QTR_EMITTERS_ON)
         {
             calmax = calibratedMaximumOn[i];
             calmin = calibratedMinimumOn[i];
         }
-        else if(readMode == QTR_EMITTERS_OFF)
+        else if(_readMode == QTR_EMITTERS_OFF)
         {
             calmax = calibratedMaximumOff[i];
             calmin = calibratedMinimumOff[i];
@@ -288,6 +301,8 @@ void QTRSensors::readCalibrated(unsigned int *sensor_values, unsigned char readM
         sensor_values[i] = x;
     }
 
+    if(step){step++;}
+
 }
 
 
@@ -310,8 +325,21 @@ void QTRSensors::readCalibrated(unsigned int *sensor_values, unsigned char readM
 // black, set the optional second argument white_line to true.  In
 // this case, each sensor value will be replaced by (1000-value)
 // before the averaging.
-int QTRSensors::readLine(unsigned int *sensor_values,
-    unsigned char readMode, unsigned char white_line)
+void QTRSensors::readLine(unsigned int *sensor_values,
+    unsigned char readMode, unsigned char white_line, unsigned int *position, int *result_ready)
+{
+
+    _result_ready = result_ready;
+    *result_ready = 0;
+    _position = position;
+    _white_line = white_line;
+
+    step = 1;
+
+    readCalibrated(sensor_values, readMode);
+}
+
+void QTRSensorsRC::HandleReadLineResults()
 {
     unsigned char i, on_line = 0;
     unsigned long avg; // this is for the weighted total, which is long
@@ -319,14 +347,12 @@ int QTRSensors::readLine(unsigned int *sensor_values,
     unsigned int sum; // this is for the denominator which is <= 64000
     static int last_value=0; // assume initially that the line is left.
 
-    readCalibrated(sensor_values, readMode);
-
     avg = 0;
     sum = 0;
 
     for(i=0;i<_numSensors;i++) {
         int value = sensor_values[i];
-        if(white_line)
+        if(_white_line)
             value = 1000-value;
 
         // keep track of whether we see the line at all
@@ -345,19 +371,21 @@ int QTRSensors::readLine(unsigned int *sensor_values,
     {
         // If it last read to the left of center, return 0.
         if(last_value < (_numSensors-1)*1000/2)
-            return 0;
+            last_value = 0;
 
         // If it last read to the right of center, return the max.
         else
-            return (_numSensors-1)*1000;
-
+            last_value =  (_numSensors-1)*1000;
+    }
+    else
+    {
+        last_value = avg/sum;
     }
 
-    last_value = avg/sum;
 
-    return last_value;
+    *_position = last_value;
+    *_result_ready = 1;
 }
-
 
 
 // Derived RC class constructors
@@ -435,22 +463,61 @@ void QTRSensorsRC::readPrivate(unsigned int *sensor_values)
     }
 
     //delayMicroseconds(10);              // charge lines for 10 us
+    readPrivate_start = micros();
+}
 
-    for(i = 0; i < _numSensors; i++)
+void QTRSensorsRC::readPrivate2()
+{
+    unsigned int time = micros() - readPrivate_start;
+    if(time > 10) //charge lines for 10 us
     {
-        pinMode(_pins[i], INPUT);       // make sensor line an input
-        digitalWrite(_pins[i], LOW);        // important: disable internal pull-up!
+        for(int i = 0; i < _numSensors; i++)
+        {
+            pinMode(_pins[i], INPUT);       // make sensor line an input
+            digitalWrite(_pins[i], LOW);        // important: disable internal pull-up!
+        }
+
+        step++;
+        readPrivate_start = micros();
     }
+}
 
-    unsigned long startTime = micros();
-    while (micros() - startTime < _maxValue)
+void QTRSensorsRC::readPrivate3()
+{
+    unsigned int time = micros() - readPrivate_start;
+    if (time < _maxValue)
     {
-        unsigned int time = micros() - startTime;
-        for (i = 0; i < _numSensors; i++)
+        for (int i = 0; i < _numSensors; i++)
         {
             if (digitalRead(_pins[i]) == LOW && time < sensor_values[i])
                 sensor_values[i] = time;
         }
+    }
+    else
+    {
+        step++;
+    }
+}
+
+void QTRSensorsRC::update()
+{
+    switch(step)
+    {
+        case 1:
+            readPrivate2(); //Trigger lines for reading
+            break;
+        case 2:
+            readPrivate3();//Actually read data
+            break;
+        case 3:
+            HandleReadResults();//Turns emitters off and other stuff
+            break;
+        case 4:
+            HandleReadCalibratedResults();
+            break;
+        case 5:
+            HandleReadLineResults();
+            break;
     }
 }
 

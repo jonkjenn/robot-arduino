@@ -107,7 +107,8 @@ class QTRSensors
     // black, set the optional second argument white_line to true.  In
     // this case, each sensor value will be replaced by (1000-value)
     // before the averaging.
-    int readLine(unsigned int *sensor_values, unsigned char readMode = QTR_EMITTERS_ON, unsigned char white_line = 0);
+    //int readLine(unsigned int *sensor_values, unsigned char readMode = QTR_EMITTERS_ON, unsigned char white_line = 0);
+    void readLine(unsigned int *sensor_values,unsigned char readMode = QTR_EMITTERS_ON, unsigned char white_line = 0, unsigned int *position = 0, int *result_ready = 0);
 
     // Calibrated minumum and maximum values. These start at 1000 and
     // 0, respectively, so that the very first sensor reading will
@@ -141,6 +142,11 @@ class QTRSensors
     unsigned char _numSensors;
     unsigned char _emitterPin;
     unsigned int _maxValue; // the maximum value returned by this function
+    unsigned char _readMode;
+    int *_result_ready;
+    unsigned int *_position;
+    unsigned char _white_line = 0;
+    unsigned int step=0;
 
   private:
 
@@ -203,6 +209,16 @@ class QTRSensorsRC : public QTRSensors
     // sensors.read(sensor_values);
     // The values returned are a measure of the reflectance in microseconds.
     void readPrivate(unsigned int *sensor_values);
+    void readPrivate2();
+    void readPrivate3();
+    void HandleReadResults();
+    void HandleReadLineResults();
+    void HandleReadComplete();
+    void HandleReadCalibratedResults();
+    void update();
+    unsigned long readPrivate_start;
+    unsigned int *sensor_values;
+
 };
 
 
@@ -260,6 +276,8 @@ class QTRSensorsAnalog : public QTRSensors
     // 10-bit ADC average with higher values corresponding to lower
     // reflectance (e.g. a black surface or a void).
     void readPrivate(unsigned int *sensor_values);
+
+
 
     unsigned char _numSamplesPerSensor;
 };
