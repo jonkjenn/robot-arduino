@@ -111,7 +111,7 @@ void QTRSensors::emittersOff()
         return;
     pinMode(_emitterPin, OUTPUT);
     digitalWrite(_emitterPin, LOW);
-    delayMicroseconds(200);
+    //delayMicroseconds(200);
 }
 
 void QTRSensors::emittersOn()
@@ -120,7 +120,7 @@ void QTRSensors::emittersOn()
         return;
     pinMode(_emitterPin, OUTPUT);
     digitalWrite(_emitterPin, HIGH);
-    delayMicroseconds(200);
+    //delayMicroseconds(200);
 }
 
 // Resets the calibration.
@@ -434,7 +434,7 @@ void QTRSensorsRC::readPrivate(unsigned int *sensor_values)
         pinMode(_pins[i], OUTPUT);      // drive sensor line high
     }
 
-    delayMicroseconds(10);              // charge lines for 10 us
+    //delayMicroseconds(10);              // charge lines for 10 us
 
     for(i = 0; i < _numSensors; i++)
     {

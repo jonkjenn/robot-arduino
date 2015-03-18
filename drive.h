@@ -1,5 +1,9 @@
+#ifndef BACHELOR_DRIVE
+#define BACHELOR_DRIVE
+
 #include "Servo.h"
 #include  "Arduino.h"
+#include "encoder.h"
 
 class Drive{
     private:
@@ -14,4 +18,6 @@ class Drive{
         void setup(unsigned int ST1_pin, unsigned int ST2_pin, unsigned char encoder_left_a, unsigned char encoder_left_b, unsigned char encoder_right_a, unsigned char encoder_right_b);
         void driveForward(unsigned int speed, unsigned int duration);
         void update();
+        double getDistance();
 };
+#endif

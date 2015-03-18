@@ -21,9 +21,9 @@ void setup()
     delay(500);
     Serial.begin(115200);
     Serial.println("Setting up linefollower");
-    //lf.setup(3,4);
-    driver.setup(ST1_pin, ST2_pin, ENCODER_LEFT_A, ENCODER_LEFT_B, ENCODER_RIGHT_A, ENCODEr_RIGHT_B);
-    driver.driveForward(120,1000);
+    driver.setup(ST1_pin, ST2_pin, ENCODER_LEFT_A, ENCODER_LEFT_B, ENCODER_RIGHT_A, ENCODER_RIGHT_B);
+    //lf.setup(ST1_pin,ST2_pin, &driver);
+    //driver.driveForward(120,1000);
 }
 
 

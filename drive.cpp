@@ -1,6 +1,6 @@
 #include "drive.h"
 
-void Drive::setup(unsigned int ST1_pin, unsigned int ST2_pin, unsigned char encoder_left_a, unsigned char encoder_left_b, unsigned char encoder_right_a, unsigned char encoder_right_b);
+void Drive::setup(unsigned int ST1_pin, unsigned int ST2_pin, unsigned char encoder_left_a, unsigned char encoder_left_b, unsigned char encoder_right_a, unsigned char encoder_right_b)
 {
     ST1.attach(ST1_pin,1000,2000);
     ST2.attach(ST2_pin,1000,2000);
@@ -20,9 +20,16 @@ void Drive::driveForward(unsigned int speed, unsigned int duration)
 
 void Drive::update()
 {
+    encoderLeft.update();
+    //encoderRight.update();
     if((micros()-_startTime)/1000 > _duration)
     {
         ST1.write(stopPower);
         ST2.write(stopPower);
     }
+}
+
+double Drive::getDistance()
+{
+    return (encoderRight.getDistance() + encoderLeft.getDistance())/2;
 }

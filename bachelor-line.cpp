@@ -3,8 +3,10 @@
 using namespace std;
 using namespace bachelor;
 
-void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin)
+void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driver)
 {
+
+    _driver = driver;
     Serial.println("Starting linefollower");
     unsigned char sensor_pins[8] =  {22, 24, 26, 28, 30, 32, 34, 36};
     qtrrc = new QTRSensorsRC(sensor_pins,
@@ -98,6 +100,11 @@ void LineFollower::update()
     // To get raw sensor values, call:
     //  qtrrc.read(sensorValues); instead of unsigned int position = qtrrc.readLine(sensorValues);
     unsigned int position = qtrrc->readLine(sensorValues);
+    //unsigned int position = 1;
+    //qtrrc->read(sensorValues);
+    if(debug){Serial.println("Position: " + String(position));}
+
+    if(previous_position<0){previous_position = position; return;}
 
     if(position >= 7000 || position ==0)
     {
@@ -106,16 +113,28 @@ void LineFollower::update()
         return;
     }
 
+    double distance = _driver->getDistance();
+
+    double angle = atan2((position-previous_position),distance);
+
+    if(debug){Serial.println("prevpos: " + String(previous_position));}
+    if(debug){Serial.println(" pos: " + String(position));}
+    if(debug){Serial.println("distance: " + String(distance));}
+    if(debug){Serial.println("Angle: " + String(angle));}
+
     // print the sensor values as numbers from 0 to 1000, where 0 means maximum reflectance and
     // 1000 means minimum reflectance, followed by the line position
-    for (unsigned char i = 0; i < NUM_SENSORS; i++)
+    if(debug)
     {
-        Serial.print(sensorValues[i]);
-        Serial.print('\t');
-    }
-    //Serial.println(); // uncomment this line if you are using raw values
+        for (unsigned char i = 0; i < NUM_SENSORS; i++)
+        {
+            Serial.print(sensorValues[i]);
+            Serial.print('\t');
+        }
+        //Serial.println(); // uncomment this line if you are using raw values
 
-    Serial.println(position); // comment this line out if you are using raw values
+        Serial.println(position); // comment this line out if you are using raw values
+    }
 
     pid_Input = position;
     //  double gap =abs(pid_SetPoint-pid_Input);
@@ -130,7 +149,9 @@ void LineFollower::update()
         }*/
     if(myPID->Compute())
     {
-        do_turn(pid_Output);
-        Serial.println("PID output: " + String(pid_Output));
+        //do_turn(pid_Output);
+        if(debug){Serial.println("PID output: " + String(pid_Output));}
     }
+
+    previous_position = position;
 }

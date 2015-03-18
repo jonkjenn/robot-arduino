@@ -3,6 +3,7 @@
 #include "Arduino.h"
 #include "Servo.h"
 #include <stdio.h>
+#include "drive.h"
 
 namespace bachelor{
 
@@ -46,7 +47,7 @@ class LineFollower{
         Servo ST1,ST2;//ST1 left motor, ST2 right motor
 
         //unsigned int preCalibratedMin[] = {800, 588, 488, 532, 536, 536, 580, 812};
-        unsigned int preCalibratedMin[8] = {2500, 2112, 1830, 1950, 1950, 1850, 1828, 2324};
+        unsigned int preCalibratedMin[8] = {2080, 1720, 1504, 1556, 1620, 1620, 1670, 2290};
         unsigned int preCalibratedMax = 2500;
 
         double pid_SetPoint,pid_Input,pid_Output;
@@ -61,10 +62,17 @@ class LineFollower{
 
         void do_turn(int direction);
 
+        int previous_position = -1;
+
+        unsigned int previous_update = 0;
+
+        Drive *_driver;
+
+        const int debug = 0;
 
         public:
             void update();
-            void setup(unsigned int ST1_pin, unsigned int ST2_pin);
+            void setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driver);
 };
 
 }
