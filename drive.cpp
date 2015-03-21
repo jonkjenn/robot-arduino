@@ -21,11 +21,13 @@ void Drive::driveForward(unsigned int speed, unsigned int duration)
 void Drive::update()
 {
     encoderLeft.update();
-    //encoderRight.update();
-    if((micros()-_startTime)/1000 > _duration)
+    encoderRight.update();
+    if(_duration > 0 && ((micros()-_startTime) > _duration*(unsigned long)1000))
     {
+        Serial.println("Stopping");
         ST1.write(stopPower);
         ST2.write(stopPower);
+        _duration = 0;
     }
 }
 

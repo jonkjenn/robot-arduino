@@ -10,7 +10,7 @@ class Drive{
         Servo ST1,ST2;//ST1 left motor, ST2 right motor
         unsigned int stopPower = 90;//stand still
         unsigned long _startTime = 0;
-        unsigned int _duration = 1000;
+        unsigned int _duration = 0;
         Encoder encoderRight;
         Encoder encoderLeft;
 

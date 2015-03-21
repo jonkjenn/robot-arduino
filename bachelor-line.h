@@ -39,16 +39,15 @@ class LineFollower{
 
 #define NUM_SENSORS   8     // number of sensors used
 #define TIMEOUT       2500  // waits for 2500 microseconds for sensor outputs to go low
-#define EMITTER_PIN   2     // emitter is controlled by digital pin 2
 
         // sensors 0 through 7 are connected to digital pins 3 through 10, respectively
-        QTRSensorsRC *qtrrc;
-        unsigned int sensorValues[NUM_SENSORS];
+        QTRSensors *qtrrc;
+        uint16_t sensorValues[NUM_SENSORS];
         Servo ST1,ST2;//ST1 left motor, ST2 right motor
 
         //unsigned int preCalibratedMin[] = {800, 588, 488, 532, 536, 536, 580, 812};
-        unsigned int preCalibratedMin[8] = {2080, 1720, 1504, 1556, 1620, 1620, 1670, 2290};
-        unsigned int preCalibratedMax = 2500;
+        uint16_t preCalibratedMin[8] = {1796, 1272, 1072, 1036, 1188, 1152, 1232, 1880};
+        uint16_t preCalibratedMax[8] = {2500,2500,2500,2500,2500,2500,2500,2500};
 
         double pid_SetPoint,pid_Input,pid_Output;
         double aggKp=10, aggKi=0.4, aggKd=1.25;

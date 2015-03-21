@@ -3,10 +3,9 @@
 void Encoder::setup(unsigned char pinA, unsigned char pinB) {
     _pinA = pinA;
     _pinB = pinB;
-    pinMode(_pinA,INPUT);
-    pinMode(_pinB,INPUT);
-    readData();
-    readData();
+    //pinMode(_pinA,INPUT);
+    //pinMode(_pinB,INPUT);
+    DDRC &= B11110000;
 }
 
 //Backward 0 -> 1, 1-> 3, 3->2, 2->0
@@ -21,8 +20,10 @@ void Encoder::setup(unsigned char pinA, unsigned char pinB) {
 //0100 - 4
 void Encoder::update() {
 
-    encAout = digitalRead(_pinA);
-    encBout = digitalRead(_pinB);
+    encAout = (PINC & (1<< _pinA)) >> _pinA;
+    encBout = (PINC & (1<< _pinB)) >> _pinB;
+    //encAout = digitalRead(_pinA);
+    //encBout = digitalRead(_pinB);
 
     if(encAoutprev >= 0 && encBoutprev >= 0){
         if(encAout == encAoutprev && encBout != encBoutprev && encBout == encAout)
@@ -47,17 +48,19 @@ void Encoder::update() {
     encBoutprev = encBout;
 
     counter++;
+    //Serial.println(encAout);
+    //Serial.println(encBout);
     //Serial.print("12: " + String(d12) + " 13: " + String(d13) + "\n");
 
-    if(debug && counter%500==0)
+/*    if(debug && counter%500==0)
     {  //Serial.print("Direction : " + String(dir) + " Val: " +String((res[0] <<2)|res[1]) + " A: " + String(encAout) + " B: " + String(encBout)+ "\n");
         Serial.print("Distance forward: " + String(fDist/64.0/18.75 * PI * 0.124) + " backward: " + String(bDist/64.0/18.75 * PI * 0.124) + "\n");
-    }
+    }*/
 }
 
-double Encoder::getDistance()
+float Encoder::getDistance()
 {
-    double val = 0;
+    float val = 0;
     if(fDist>bDist)
     {
         val = fDist/64.0/18.75 * PI * WHEEL_SIZE;
@@ -71,25 +74,4 @@ double Encoder::getDistance()
 
 
     return val;
-}
-
-void Encoder::readData()
-{
-    res[0] = res[1]; 
-
-    encAout = digitalRead(_pinA);
-    encBout = digitalRead(_pinB);
-
-    if(encAoutprev > 0 && encBoutprev > 0){
-        if(encAout == encAoutprev && encBout != encBoutprev && encBout == encAout)
-        {
-            direction = 1;
-        }
-        else if(encBout == encBoutprev && encAout != encAoutprev && encAout == encBout)
-        {
-            direction = -1;
-        }
-    }
-
-    res[1] = (encAout << 1) | encBout;
 }

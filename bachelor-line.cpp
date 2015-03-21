@@ -8,8 +8,9 @@ void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driv
 
     _driver = driver;
     Serial.println("Starting linefollower");
-    unsigned char sensor_pins[8] =  {22, 24, 26, 28, 30, 32, 34, 36};
-    qtrrc = new QTRSensorsRC(sensor_pins,
+    unsigned char sensor_pins[8] =  {22, 23, 24, 25, 26, 27, 28, 29};
+    unsigned char EMITTER_PIN = PC7;     // emitter is controlled by digital pin 2
+    qtrrc = new QTRSensors(sensor_pins,
             NUM_SENSORS, TIMEOUT, EMITTER_PIN); 
     myPID = new PID(&pid_Input, &pid_Output, &pid_SetPoint,consKp,consKi,consKd,DIRECT);
     ST1.attach(ST1_pin,1000,2000);
@@ -22,20 +23,20 @@ void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driv
         qtrrc->calibrate();       // reads all sensors 10 times at 2500 us per read (i.e. ~25 ms per call)
     }
 
-    for(int i=0;i<NUM_SENSORS;i++)
+    /*for(int i=0;i<NUM_SENSORS;i++)
     {
         qtrrc->calibratedMinimumOn[i] = preCalibratedMin[i];
         qtrrc->calibratedMaximumOn[i] = preCalibratedMax;
-    }
+    }*/
 
     digitalWrite(13, LOW);     // turn off Arduino's LED to indicate we are through with calibration
 
     //print the calibration minimum values measured when emitters were on
-    for (int i = 0; i < NUM_SENSORS; i++)
+    /*for (int i = 0; i < NUM_SENSORS; i++)
     {
         Serial.print(qtrrc->calibratedMinimumOn[i]);
         Serial.print(' ');
-    }
+    }*/
     Serial.println();
 
     // print the calibration maximum values measured when emitters were on
@@ -45,11 +46,11 @@ void LineFollower::setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driv
         Serial.print(' ');
         }*/
     Serial.println();
-    for (int i = 0; i < NUM_SENSORS; i++)
+    /*for (int i = 0; i < NUM_SENSORS; i++)
     {
         Serial.print(qtrrc->calibratedMaximumOn[i]);
         Serial.print(' ');
-    }
+    }*/
     Serial.println();
     /*  for (int i = 0; i < NUM_SENSORS; i++)
         {
@@ -93,18 +94,22 @@ void LineFollower::do_turn(int direction)
     }
 }
 
+int dtest = 0;
 void LineFollower::update()
 {
+    dtest++;
     //read calibrated sensor values and obtain a measure of the line position from 0 to 5000
     // To get raw sensor values, call:
     //  qtrrc.read(sensorValues); instead of unsigned int position = qtrrc.readLine(sensorValues);
     if(result_ready<0)
     {
-        qtrrc->readLine(sensorValues, QTR_EMITTERS_ON,0, &position, &result_ready);
+        //if(debug){Serial.println("result_ready: " + String(result_ready));}
+        qtrrc->readLine(sensorValues, QTR_EMITTERS_ON,0, &position, &result_ready, preCalibratedMin, preCalibratedMax);
         return;
     }
     else if(result_ready == 0)
     {
+        qtrrc->update();
         return;
     }
 
@@ -112,7 +117,7 @@ void LineFollower::update()
 
     //unsigned int position = 1;
     //qtrrc->read(sensorValues);
-    if(debug){Serial.println("Position: " + String(position));}
+    //if(debug){Serial.println("Position: " + String(position));}
 
     if(previous_position<0){previous_position = position; return;}
 
@@ -127,6 +132,7 @@ void LineFollower::update()
 
     double angle = atan2((position-previous_position),distance);
 
+    if(dtest%100 == 0){
     if(debug){Serial.println("prevpos: " + String(previous_position));}
     if(debug){Serial.println(" pos: " + String(position));}
     if(debug){Serial.println("distance: " + String(distance));}
@@ -145,6 +151,7 @@ void LineFollower::update()
 
         Serial.println(position); // comment this line out if you are using raw values
     }
+    }
 
     pid_Input = position;
     //  double gap =abs(pid_SetPoint-pid_Input);
@@ -157,10 +164,13 @@ void LineFollower::update()
         {
         myPID.SetTunings(aggKp,aggKi,aggKd);
         }*/
+    if(dtest%100 ==0)
+    {
     if(myPID->Compute())
     {
         //do_turn(pid_Output);
         if(debug){Serial.println("PID output: " + String(pid_Output));}
+    }
     }
 
     previous_position = position;

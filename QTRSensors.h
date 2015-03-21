@@ -33,6 +33,7 @@
 
 #ifndef QTRSensors_h
 #define QTRSensors_h
+#include <stdint.h>
 
 #define QTR_EMITTERS_OFF 0
 #define QTR_EMITTERS_ON 1
@@ -63,7 +64,7 @@ class QTRSensors
     // This method will call the appropriate derived class's readPrivate(),
     // which is defined as a virtual function in the base class and
     // overridden by each derived class's own implementation.
-    void read(unsigned int *sensor_values, unsigned char readMode = QTR_EMITTERS_ON);
+    void read(unsigned char readMode = QTR_EMITTERS_ON);
 
     // Turn the IR LEDs off and on.  This is mainly for use by the
     // read method, and calling these functions before or
@@ -86,7 +87,7 @@ class QTRSensors
     // corresponds to the maximum value.  Calibration values are
     // stored separately for each sensor, so that differences in the
     // sensors are accounted for automatically.
-    void readCalibrated(unsigned int *sensor_values, unsigned char readMode = QTR_EMITTERS_ON);
+    void readCalibrated(unsigned char readMode = QTR_EMITTERS_ON);
 
     // Operates the same as read calibrated, but also returns an
     // estimated position of the robot with respect to a line. The
@@ -108,7 +109,7 @@ class QTRSensors
     // this case, each sensor value will be replaced by (1000-value)
     // before the averaging.
     //int readLine(unsigned int *sensor_values, unsigned char readMode = QTR_EMITTERS_ON, unsigned char white_line = 0);
-    void readLine(unsigned int *sensor_values,unsigned char readMode = QTR_EMITTERS_ON, unsigned char white_line = 0, unsigned int *position = 0, int *result_ready = 0);
+    void readLine(uint16_t *sensor_values,unsigned char readMode = QTR_EMITTERS_ON, unsigned char white_line = 0, unsigned int *position = 0, int *result_ready = 0, uint16_t *calibrated_min=0, uint16_t *calibrated_max=0);
 
     // Calibrated minumum and maximum values. These start at 1000 and
     // 0, respectively, so that the very first sensor reading will
@@ -122,21 +123,44 @@ class QTRSensors
     // These variables are made public so that you can use them for
     // your own calculations and do things like saving the values to
     // EEPROM, performing sanity checking, etc.
-    unsigned int *calibratedMinimumOn;
-    unsigned int *calibratedMaximumOn;
-    unsigned int *calibratedMinimumOff;
-    unsigned int *calibratedMaximumOff;
+    uint16_t *calibratedMinimumOn;
+    uint16_t *calibratedMaximumOn;
+    uint16_t *calibratedMinimumOff;
+    uint16_t *calibratedMaximumOff;
 
     ~QTRSensors();
 
-  protected:
-
-    QTRSensors()
-    {
-
-    };
+    QTRSensors(unsigned char* pins, unsigned char numSensors,
+          unsigned int timeout = 4000, unsigned char emitterPin = 255);
 
     void init(unsigned char *pins, unsigned char numSensors, unsigned char emitterPin);
+
+    void init(unsigned char* pins, unsigned char numSensors,
+          unsigned int timeout = 2000, unsigned char emitterPin = QTR_NO_EMITTER_PIN);
+
+    void update();
+
+  private:
+
+    //virtual void readPrivate(unsigned int *sensor_values) = 0;
+
+    // Handles the actual calibration. calibratedMinimum and
+    // calibratedMaximum are pointers to the requested calibration
+    // arrays, which will be allocated if necessary.
+    void calibrateOnOrOff(unsigned int **calibratedMinimum,
+                          unsigned int **calibratedMaximum,
+                          unsigned char readMode);
+
+    void readPrivate();
+    void readPrivate2();
+    void readPrivate3();
+    void HandleReadLineResults();
+    void HandleReadComplete();
+    void HandleReadCalibratedResults();
+    unsigned long readPrivate_start;
+    uint16_t *_sensor_values;
+
+    unsigned char debug = 0;
 
     unsigned char *_pins;
     unsigned char _numSensors;
@@ -146,141 +170,7 @@ class QTRSensors
     int *_result_ready;
     unsigned int *_position;
     unsigned char _white_line = 0;
-    unsigned int step=0;
-
-  private:
-
-    virtual void readPrivate(unsigned int *sensor_values) = 0;
-
-    // Handles the actual calibration. calibratedMinimum and
-    // calibratedMaximum are pointers to the requested calibration
-    // arrays, which will be allocated if necessary.
-    void calibrateOnOrOff(unsigned int **calibratedMinimum,
-                          unsigned int **calibratedMaximum,
-                          unsigned char readMode);
-};
-
-
-
-// Object to be used for QTR-1RC and QTR-8RC sensors
-class QTRSensorsRC : public QTRSensors
-{
-  public:
-
-    // if this constructor is used, the user must call init() before using
-    // the methods in this class
-    QTRSensorsRC();
-
-    // this constructor just calls init()
-    QTRSensorsRC(unsigned char* pins, unsigned char numSensors,
-          unsigned int timeout = 4000, unsigned char emitterPin = 255);
-
-    // The array 'pins' contains the Arduino pin number for each sensor.
-
-    // 'numSensors' specifies the length of the 'pins' array (i.e. the
-    // number of QTR-RC sensors you are using).  numSensors must be
-    // no greater than 16.
-
-    // 'timeout' specifies the length of time in microseconds beyond
-    // which you consider the sensor reading completely black.  That is to say,
-    // if the pulse length for a pin exceeds 'timeout', pulse timing will stop
-    // and the reading for that pin will be considered full black.
-    // It is recommended that you set timeout to be between 1000 and
-    // 3000 us, depending on things like the height of your sensors and
-    // ambient lighting.  Using timeout allows you to shorten the
-    // duration of a sensor-reading cycle while still maintaining
-    // useful analog measurements of reflectance
-
-    // 'emitterPin' is the Arduino pin that controls the IR LEDs on the 8RC
-    // modules.  If you are using a 1RC (i.e. if there is no emitter pin),
-    // or if you just want the emitters on all the time and don't want to
-    // use an I/O pin to control it, use a value of 255 (QTR_NO_EMITTER_PIN).
-    void init(unsigned char* pins, unsigned char numSensors,
-          unsigned int timeout = 2000, unsigned char emitterPin = QTR_NO_EMITTER_PIN);
-
-
-
-  private:
-
-    // Reads the sensor values into an array. There *MUST* be space
-    // for as many values as there were sensors specified in the constructor.
-    // Example usage:
-    // unsigned int sensor_values[8];
-    // sensors.read(sensor_values);
-    // The values returned are a measure of the reflectance in microseconds.
-    void readPrivate(unsigned int *sensor_values);
-    void readPrivate2();
-    void readPrivate3();
-    void HandleReadResults();
-    void HandleReadLineResults();
-    void HandleReadComplete();
-    void HandleReadCalibratedResults();
-    void update();
-    unsigned long readPrivate_start;
-    unsigned int *sensor_values;
+    unsigned char step=0;
 
 };
-
-
-
-// Object to be used for QTR-1A and QTR-8A sensors
-class QTRSensorsAnalog : public QTRSensors
-{
-  public:
-
-    // if this constructor is used, the user must call init() before using
-    // the methods in this class
-    QTRSensorsAnalog();
-
-    // this constructor just calls init()
-    QTRSensorsAnalog(unsigned char* pins,
-        unsigned char numSensors, unsigned char numSamplesPerSensor = 4,
-        unsigned char emitterPin = 255);
-
-    // the array 'pins' contains the Arduino analog pin assignment for each
-    // sensor.  For example, if pins is {0, 1, 7}, sensor 1 is on
-    // Arduino analog input 0, sensor 2 is on Arduino analog input 1,
-    // and sensor 3 is on Arduino analog input 7.
-
-    // 'numSensors' specifies the length of the 'analogPins' array (i.e. the
-    // number of QTR-A sensors you are using).  numSensors must be
-    // no greater than 16.
-
-    // 'numSamplesPerSensor' indicates the number of 10-bit analog samples
-    // to average per channel (i.e. per sensor) for each reading.  The total
-    // number of analog-to-digital conversions performed will be equal to
-    // numSensors*numSamplesPerSensor.  Note that it takes about 100 us to
-    // perform a single analog-to-digital conversion, so:
-    // if numSamplesPerSensor is 4 and numSensors is 6, it will take
-    // 4 * 6 * 100 us = ~2.5 ms to perform a full readLine().
-    // Increasing this parameter increases noise suppression at the cost of
-    // sample rate.  The recommended value is 4.
-
-    // 'emitterPin' is the Arduino pin that controls the IR LEDs on the 8RC
-    // modules.  If you are using a 1RC (i.e. if there is no emitter pin),
-    // or if you just want the emitters on all the time and don't want to
-    // use an I/O pin to control it, use a value of 255 (QTR_NO_EMITTER_PIN).
-    void init(unsigned char* analogPins, unsigned char numSensors,
-        unsigned char numSamplesPerSensor = 4, unsigned char emitterPin = QTR_NO_EMITTER_PIN);
-
-
-
-  private:
-
-    // Reads the sensor values into an array. There *MUST* be space
-    // for as many values as there were sensors specified in the constructor.
-    // Example usage:
-    // unsigned int sensor_values[8];
-    // sensors.read(sensor_values);
-    // The values returned are a measure of the reflectance in terms of a
-    // 10-bit ADC average with higher values corresponding to lower
-    // reflectance (e.g. a black surface or a void).
-    void readPrivate(unsigned int *sensor_values);
-
-
-
-    unsigned char _numSamplesPerSensor;
-};
-
-
 #endif

@@ -31,8 +31,8 @@
  * to be responsible for all resulting costs and damages.
  */
 
-#include <stdlib.h>
 #include "QTRSensors.h"
+#include <stdlib.h>
 #include <Arduino.h>
 
 
@@ -41,10 +41,10 @@
 void QTRSensors::init(unsigned char *pins, unsigned char numSensors,
   unsigned char emitterPin)
 {
-    calibratedMinimumOn=0;
+    /*calibratedMinimumOn=0;
     calibratedMaximumOn=0;
     calibratedMinimumOff=0;
-    calibratedMaximumOff=0;
+    calibratedMaximumOff=0;*/
 
     if (numSensors > QTR_MAX_SENSORS)
         _numSensors = QTR_MAX_SENSORS;
@@ -76,7 +76,7 @@ void QTRSensors::init(unsigned char *pins, unsigned char numSensors,
 // The values returned are a measure of the reflectance in abstract units,
 // with higher values corresponding to lower reflectance (e.g. a black
 // surface or a void).
-void QTRSensors::read(unsigned int *sensor_values, unsigned char readMode)
+void QTRSensors::read(unsigned char readMode)
 {
     _readMode = readMode;
 
@@ -85,18 +85,18 @@ void QTRSensors::read(unsigned int *sensor_values, unsigned char readMode)
     else
         emittersOff();
 
-    readPrivate(sensor_values);
+    readPrivate();
 
 }
 
-void QTRSensorsRC::HandleReadComplete()
+void QTRSensors::HandleReadComplete()
 {
-    unsigned int off_values[QTR_MAX_SENSORS];
-    unsigned char i;
+    //unsigned int off_values[QTR_MAX_SENSORS];
+    //unsigned char i;
 
     emittersOff();
 
-    if(_readMode == QTR_EMITTERS_ON_AND_OFF)
+    /*if(_readMode == QTR_EMITTERS_ON_AND_OFF)
     {
         readPrivate(off_values);
 
@@ -104,8 +104,8 @@ void QTRSensorsRC::HandleReadComplete()
         {
             sensor_values[i] += _maxValue - off_values[i];
         }
-    }
-    if(step){step++;}
+    }*/
+    if(step){step = 4;}
 }
 
 
@@ -117,17 +117,24 @@ void QTRSensors::emittersOff()
 {
     if (_emitterPin == QTR_NO_EMITTER_PIN)
         return;
-    pinMode(_emitterPin, OUTPUT);
-    digitalWrite(_emitterPin, LOW);
+    //pinMode(_emitterPin, OUTPUT);
+    //PORTB &= ~_BV(_emitterPin);
+    //digitalWrite(_emitterPin, LOW);
     //delayMicroseconds(200);
+    DDRC |= B10000000;
+    PORTC &= B01111111;
 }
 
 void QTRSensors::emittersOn()
 {
     if (_emitterPin == QTR_NO_EMITTER_PIN)
         return;
-    pinMode(_emitterPin, OUTPUT);
-    digitalWrite(_emitterPin, HIGH);
+    //pinMode(_emitterPin, OUTPUT);
+    //digitalWrite(_emitterPin, HIGH);
+    //PORTC |= _emitterPin;
+    
+    DDRC |= B10000000;
+    PORTC |= B10000000;
     //delayMicroseconds(200);
 }
 
@@ -168,6 +175,7 @@ void QTRSensors::calibrate(unsigned char readMode)
                          &calibratedMaximumOff,
                          QTR_EMITTERS_OFF);
     }
+    Serial.println("Calibrated");
 }
 
 void QTRSensors::calibrateOnOrOff(unsigned int **calibratedMinimum,
@@ -175,14 +183,14 @@ void QTRSensors::calibrateOnOrOff(unsigned int **calibratedMinimum,
                                         unsigned char readMode)
 {
     int i;
-    unsigned int sensor_values[16];
-    unsigned int max_sensor_values[16];
-    unsigned int min_sensor_values[16];
+    uint16_t sensor_values[16];
+    uint16_t max_sensor_values[16];
+    uint16_t min_sensor_values[16];
 
     // Allocate the arrays if necessary.
     if(*calibratedMaximum == 0)
     {
-        *calibratedMaximum = (unsigned int*)malloc(sizeof(unsigned int)*_numSensors);
+        *calibratedMaximum = (uint16_t *)malloc(sizeof(uint16_t)*_numSensors);
 
         // If the malloc failed, don't continue.
         if(*calibratedMaximum == 0)
@@ -196,7 +204,7 @@ void QTRSensors::calibrateOnOrOff(unsigned int **calibratedMinimum,
     }
     if(*calibratedMinimum == 0)
     {
-        *calibratedMinimum = (unsigned int*)malloc(sizeof(unsigned int)*_numSensors);
+        *calibratedMinimum = (uint16_t *)malloc(sizeof(uint16_t )*_numSensors);
 
         // If the malloc failed, don't continue.
         if(*calibratedMinimum == 0)
@@ -209,7 +217,7 @@ void QTRSensors::calibrateOnOrOff(unsigned int **calibratedMinimum,
     int j;
     for(j=0;j<10;j++)
     {
-        read(sensor_values,readMode);
+        read(readMode);
         for(i=0;i<_numSensors;i++)
         {
             // set the max we found THIS time
@@ -238,37 +246,49 @@ void QTRSensors::calibrateOnOrOff(unsigned int **calibratedMinimum,
 // corresponds to the maximum value.  Calibration values are
 // stored separately for each sensor, so that differences in the
 // sensors are accounted for automatically.
-void QTRSensors::readCalibrated(unsigned int *sensor_values, unsigned char readMode)
+void QTRSensors::readCalibrated(unsigned char readMode)
 {
     _readMode = readMode;
 
     // if not calibrated, do nothing
-    if(readMode == QTR_EMITTERS_ON_AND_OFF || readMode == QTR_EMITTERS_OFF)
-        if(!calibratedMinimumOff || !calibratedMaximumOff)
-            return;
-    if(readMode == QTR_EMITTERS_ON_AND_OFF || readMode == QTR_EMITTERS_ON)
-        if(!calibratedMinimumOn || !calibratedMaximumOn)
-            return;
+    //if(readMode == QTR_EMITTERS_ON_AND_OFF || readMode == QTR_EMITTERS_OFF)
+    //    if(!calibratedMinimumOff || !calibratedMaximumOff)
+            //return;
+    //if(readMode == QTR_EMITTERS_ON_AND_OFF || readMode == QTR_EMITTERS_ON)
+    //    if(!calibratedMinimumOn || !calibratedMaximumOn)
+    //        return;
 
     // read the needed values
-    read(sensor_values,readMode);
+    read(readMode);
 
 }
 
-
-void QTRSensorsRC::HandleReadCalibratedResults()
+int ctest = 0;
+void QTRSensors::HandleReadCalibratedResults()
 {
+    uint16_t calmin,calmax;
+    uint16_t denominator;
+    uint16_t x = 0;
+
+    ctest++;
+
+    /*if(ctest%100==0){
+        for(int i=0;i<_numSensors;i++)
+        {
+            Serial.print(String(_sensor_values[i]) + " ");
+        }
+        Serial.println("");
+    }*/
+
     for(int i=0;i<_numSensors;i++)
     {
-        unsigned int calmin,calmax;
-        unsigned int denominator;
-
         // find the correct calibration
-        if(_readMode == QTR_EMITTERS_ON)
-        {
-            calmax = calibratedMaximumOn[i];
-            calmin = calibratedMinimumOn[i];
-        }
+        //if(_readMode == QTR_EMITTERS_ON)
+        //{
+        calmax = calibratedMaximumOn[i];
+        calmin = calibratedMinimumOn[i];
+        //}
+        /*
         else if(_readMode == QTR_EMITTERS_OFF)
         {
             calmax = calibratedMaximumOff[i];
@@ -286,22 +306,43 @@ void QTRSensorsRC::HandleReadCalibratedResults()
                 calmax = _maxValue;
             else
                 calmax = calibratedMaximumOn[i] + _maxValue - calibratedMaximumOff[i]; // this won't go past _maxValue
-        }
+        }*/
 
         denominator = calmax - calmin;
 
-        signed int x = 0;
+        //Serial.println("Sv: " + String(sensor_values[i]));
+
         if(denominator != 0)
-            x = (((signed long)sensor_values[i]) - calmin)
-                * 1000 / denominator;
-        if(x < 0)
-            x = 0;
-        else if(x > 1000)
+        {
+            if(_sensor_values[i] < calmin)
+            {
+                x = 0;
+            }
+            else
+            {
+                x = ((float)(_sensor_values[i] - calmin)  * (1000.0 / denominator));
+            }
+        }
+
+        if(x > 1000)
             x = 1000;
-        sensor_values[i] = x;
+        _sensor_values[i] = x;
+
+        //Serial.println("s");
+        //Serial.println(i);
+        //Serial.println(x);
+
     }
 
-    if(step){step++;}
+    if(ctest%100==0){
+        for(int i=0;i<_numSensors;i++)
+        {
+            Serial.print(String(_sensor_values[i]) + " ");
+        }
+        Serial.println(" ");
+    }
+
+    if(step){step = 5;}
 
 }
 
@@ -325,33 +366,37 @@ void QTRSensorsRC::HandleReadCalibratedResults()
 // black, set the optional second argument white_line to true.  In
 // this case, each sensor value will be replaced by (1000-value)
 // before the averaging.
-void QTRSensors::readLine(unsigned int *sensor_values,
-    unsigned char readMode, unsigned char white_line, unsigned int *position, int *result_ready)
+void QTRSensors::readLine(uint16_t *sensor_values,
+    unsigned char readMode, unsigned char white_line, unsigned int *position, int *result_ready, uint16_t *calibrated_min, uint16_t *calibrated_max)
 {
-
+    calibratedMaximumOn = calibrated_max;
+    calibratedMinimumOn = calibrated_min;
     _result_ready = result_ready;
-    *result_ready = 0;
+    *_result_ready = 0;
     _position = position;
     _white_line = white_line;
+    _sensor_values = sensor_values;
 
     step = 1;
 
-    readCalibrated(sensor_values, readMode);
+    readCalibrated(readMode);
 }
+uint16_t on_line = 0;
 
-void QTRSensorsRC::HandleReadLineResults()
+unsigned long hravg; // this is for the weighted total, which is long
+                   // before division
+uint16_t hrsum; // this is for the denominator which is <= 64000
+uint16_t hrlast_value=0; // assume initially that the line is left.
+
+void QTRSensors::HandleReadLineResults()
 {
-    unsigned char i, on_line = 0;
-    unsigned long avg; // this is for the weighted total, which is long
-                       // before division
-    unsigned int sum; // this is for the denominator which is <= 64000
-    static int last_value=0; // assume initially that the line is left.
 
-    avg = 0;
-    sum = 0;
+    hravg = 0;
+    hrsum = 0;
+    uint16_t value = 0;
 
-    for(i=0;i<_numSensors;i++) {
-        int value = sensor_values[i];
+    for(char i=0;i<_numSensors;i++) {
+        value = _sensor_values[i];
         if(_white_line)
             value = 1000-value;
 
@@ -362,43 +407,31 @@ void QTRSensorsRC::HandleReadLineResults()
 
         // only average in values that are above a noise threshold
         if(value > 50) {
-            avg += (long)(value) * (i * 1000);
-            sum += value;
+            hravg += (long)(value) * (i * 1000);
+            hrsum += value;
         }
     }
 
     if(!on_line)
     {
         // If it last read to the left of center, return 0.
-        if(last_value < (_numSensors-1)*1000/2)
-            last_value = 0;
+        if(hrlast_value < (_numSensors-1)*500)
+            hrlast_value = 0;
 
         // If it last read to the right of center, return the max.
         else
-            last_value =  (_numSensors-1)*1000;
+            hrlast_value =  (_numSensors-1)*1000;
     }
     else
     {
-        last_value = avg/sum;
+        hrlast_value = hravg/hrsum;
     }
 
-
-    *_position = last_value;
+    *_position = hrlast_value;
     *_result_ready = 1;
 }
 
-
-// Derived RC class constructors
-QTRSensorsRC::QTRSensorsRC()
-{
-    calibratedMinimumOn = 0;
-    calibratedMaximumOn = 0;
-    calibratedMinimumOff = 0;
-    calibratedMaximumOff = 0;
-    _pins = 0;
-}
-
-QTRSensorsRC::QTRSensorsRC(unsigned char* pins,
+QTRSensors::QTRSensors(unsigned char* pins,
   unsigned char numSensors, unsigned int timeout, unsigned char emitterPin)
 {
     calibratedMinimumOn = 0;
@@ -431,7 +464,7 @@ QTRSensorsRC::QTRSensorsRC(unsigned char* pins,
 // modules.  If you are using a 1RC (i.e. if there is no emitter pin),
 // or if you just want the emitters on all the time and don't want to
 // use an I/O pin to control it, use a value of 255 (QTR_NO_EMITTER_PIN).
-void QTRSensorsRC::init(unsigned char* pins,
+void QTRSensors::init(unsigned char* pins,
     unsigned char numSensors, unsigned int timeout, unsigned char emitterPin)
 {
     QTRSensors::init(pins, numSensors, emitterPin);
@@ -448,8 +481,9 @@ void QTRSensorsRC::init(unsigned char* pins,
 // ...
 // The values returned are in microseconds and range from 0 to
 // timeout (as specified in the constructor).
-void QTRSensorsRC::readPrivate(unsigned int *sensor_values)
+void QTRSensors::readPrivate()
 {
+    //unsigned long start = micros();
     unsigned char i;
 
     if (_pins == 0)
@@ -457,162 +491,114 @@ void QTRSensorsRC::readPrivate(unsigned int *sensor_values)
 
     for(i = 0; i < _numSensors; i++)
     {
-        sensor_values[i] = _maxValue;
-        digitalWrite(_pins[i], HIGH);   // make sensor line an output
-        pinMode(_pins[i], OUTPUT);      // drive sensor line high
+        _sensor_values[i] = _maxValue;
+        //pinMode(_pins[i], OUTPUT);      // drive sensor line high
+        //digitalWrite(_pins[i], HIGH);   // make sensor line an output
     }
 
-    //delayMicroseconds(10);              // charge lines for 10 us
+    DDRA = B11111111;//Set register A ports for output
+    PORTA = B11111111;//Set set register A ports to HIGH
+    //pinMode(22,OUTPUT);
+    //digitalWrite(22,HIGH);
+
+    delayMicroseconds(10);// charge lines for 10 us
+
+    readPrivate2();
+    //if(debug){Serial.println("readPrivate duration: " + String(micros() - start));}
+}
+
+void QTRSensors::readPrivate2()
+{
+    //unsigned long time = micros() - readPrivate_start;
+    //if(debug){Serial.println("readPrivate2 time: " + String(time));}
+
+    DDRA = B00000000;//Set register A ports for INPUT
+    PORTA = B00000000;//Disable pull ups
+    //pinMode(22,INPUT);
+    //digitalWrite(22,LOW);
+    //PORTA = B00000000;//Set set register A ports to LOW
+    /*for(int i = 0; i < _numSensors; i++)
+    {
+        pinMode(_pins[i], INPUT);       // make sensor line an input
+        digitalWrite(_pins[i], LOW);        // important: disable internal pull-up!
+    }*/
+
+    step = 2;
     readPrivate_start = micros();
+    readPrivate3();
 }
 
-void QTRSensorsRC::readPrivate2()
+unsigned long rpt3 = 0;
+//int ctest = 0;
+void QTRSensors::readPrivate3()
 {
-    unsigned int time = micros() - readPrivate_start;
-    if(time > 10) //charge lines for 10 us
+    //Serial.println("PINA: " + String(PINA));
+    rpt3 = micros() - readPrivate_start;
+    //unsigned long start_readrprivate3 = micros();
+    //if(debug){Serial.println("readPrivate3 time1 "); Serial.println(time);}
+    //if(debug){Serial.println("readPrivate3 time2 "); Serial.println(time);}
+    if (rpt3 < _maxValue)
     {
-        for(int i = 0; i < _numSensors; i++)
-        {
-            pinMode(_pins[i], INPUT);       // make sensor line an input
-            digitalWrite(_pins[i], LOW);        // important: disable internal pull-up!
-        }
-
-        step++;
-        readPrivate_start = micros();
-    }
-}
-
-void QTRSensorsRC::readPrivate3()
-{
-    unsigned int time = micros() - readPrivate_start;
-    if (time < _maxValue)
-    {
+        uint8_t completed = 0;
         for (int i = 0; i < _numSensors; i++)
         {
-            if (digitalRead(_pins[i]) == LOW && time < sensor_values[i])
-                sensor_values[i] = time;
+            //if (digitalRead(_pins[i]) == LOW && time < sensor_values[i])
+            //Serial.println(PINA);
+            if (bitRead(PINA,i) == 0 && rpt3 < _sensor_values[i])
+            {
+                //if(debug){Serial.println("Sensors i:" + String(i) + " Time: " + String(time));}
+
+//                Serial.println(time);
+                _sensor_values[i] = rpt3;
+                completed++;
+            }
+            //if(debug){Serial.println("pina:"  + String(PINA) + " pin: " + String(bitRead(PINA,i)) + " sv: " + String(sensor_values[i]));}
         }
+        if(completed == _numSensors){Serial.println("All complete");}
     }
     else
     {
-        step++;
+ /*       ctest++;
+        if(ctest%100 ==0){
+            for(int i=0;i<_numSensors;i++)
+            {
+                Serial.print(String(_sensor_values[i]) + " ");
+            }
+            Serial.println(" ");
+        }*/
+        step = 3;
     }
+    //if(debug){Serial.println("readPrivate3 internal time: " + String(micros() - start_readrprivate3));}
 }
 
-void QTRSensorsRC::update()
+void QTRSensors::update()
 {
+    //unsigned long start = micros();
     switch(step)
     {
         case 1:
             readPrivate2(); //Trigger lines for reading
+            //if(debug){Serial.println("case 1, duration : " + String(micros() - start));}
             break;
         case 2:
             readPrivate3();//Actually read data
+            //if(debug){Serial.println("case 2, duration : " + String(micros() - start));}
             break;
         case 3:
-            HandleReadResults();//Turns emitters off and other stuff
+            HandleReadComplete();//Turns emitters off and other stuff
+            //if(debug){Serial.println("case 3, duration : " + String(micros() - start));}
             break;
         case 4:
             HandleReadCalibratedResults();
+            //if(debug){Serial.println("case 4, duration : " + String(micros() - start));}
             break;
         case 5:
             HandleReadLineResults();
+            //if(debug){Serial.println("case 5, duration : " + String(micros() - start));}
             break;
     }
 }
 
-
-
-// Derived Analog class constructors
-QTRSensorsAnalog::QTRSensorsAnalog()
-{
-    calibratedMinimumOn = 0;
-    calibratedMaximumOn = 0;
-    calibratedMinimumOff = 0;
-    calibratedMaximumOff = 0;
-    _pins = 0;
-}
-
-QTRSensorsAnalog::QTRSensorsAnalog(unsigned char* pins,
-  unsigned char numSensors, unsigned char numSamplesPerSensor,
-  unsigned char emitterPin)
-{
-    calibratedMinimumOn = 0;
-    calibratedMaximumOn = 0;
-    calibratedMinimumOff = 0;
-    calibratedMaximumOff = 0;
-    _pins = 0;
-
-    init(pins, numSensors, numSamplesPerSensor, emitterPin);
-}
-
-
-// the array 'pins' contains the Arduino analog pin assignment for each
-// sensor.  For example, if pins is {0, 1, 7}, sensor 1 is on
-// Arduino analog input 0, sensor 2 is on Arduino analog input 1,
-// and sensor 3 is on Arduino analog input 7.
-
-// 'numSensors' specifies the length of the 'analogPins' array (i.e. the
-// number of QTR-A sensors you are using).  numSensors must be
-// no greater than 16.
-
-// 'numSamplesPerSensor' indicates the number of 10-bit analog samples
-// to average per channel (i.e. per sensor) for each reading.  The total
-// number of analog-to-digital conversions performed will be equal to
-// numSensors*numSamplesPerSensor.  Note that it takes about 100 us to
-// perform a single analog-to-digital conversion, so:
-// if numSamplesPerSensor is 4 and numSensors is 6, it will take
-// 4 * 6 * 100 us = ~2.5 ms to perform a full readLine().
-// Increasing this parameter increases noise suppression at the cost of
-// sample rate.  The recommended value is 4.
-
-// 'emitterPin' is the Arduino pin that controls the IR LEDs on the 8RC
-// modules.  If you are using a 1RC (i.e. if there is no emitter pin),
-// or if you just want the emitters on all the time and don't want to
-// use an I/O pin to control it, use a value of 255 (QTR_NO_EMITTER_PIN).
-void QTRSensorsAnalog::init(unsigned char* pins,
-    unsigned char numSensors, unsigned char numSamplesPerSensor,
-    unsigned char emitterPin)
-{
-    QTRSensors::init(pins, numSensors, emitterPin);
-
-    _numSamplesPerSensor = numSamplesPerSensor;
-    _maxValue = 1023; // this is the maximum returned by the A/D conversion
-}
-
-
-// Reads the sensor values into an array. There *MUST* be space
-// for as many values as there were sensors specified in the constructor.
-// Example usage:
-// unsigned int sensor_values[8];
-// sensors.read(sensor_values);
-// The values returned are a measure of the reflectance in terms of a
-// 10-bit ADC average with higher values corresponding to lower
-// reflectance (e.g. a black surface or a void).
-void QTRSensorsAnalog::readPrivate(unsigned int *sensor_values)
-{
-    unsigned char i, j;
-
-    if (_pins == 0)
-        return;
-
-    // reset the values
-    for(i = 0; i < _numSensors; i++)
-        sensor_values[i] = 0;
-
-    for (j = 0; j < _numSamplesPerSensor; j++)
-    {
-        for (i = 0; i < _numSensors; i++)
-        {
-            sensor_values[i] += analogRead(_pins[i]);   // add the conversion result
-        }
-    }
-
-    // get the rounded average of the readings for each sensor
-    for (i = 0; i < _numSensors; i++)
-        sensor_values[i] = (sensor_values[i] + (_numSamplesPerSensor >> 1)) /
-            _numSamplesPerSensor;
-}
 
 // the destructor frees up allocated memory
 QTRSensors::~QTRSensors()
