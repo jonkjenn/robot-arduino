@@ -9,29 +9,37 @@ void Drive::setup(unsigned int ST1_pin, unsigned int ST2_pin, unsigned char enco
     encoderLeft.setup(encoder_left_a,encoder_left_b);
 }
 
-void Drive::driveForward(unsigned int speed, unsigned int duration)
+void Drive::driveForward(unsigned int speed, unsigned long duration)
 {
-    Serial.println("Driving with speed: " + String(speed));
-    _duration = duration;
+    //Serial.println("Driving with speed: " + String(speed));
+    _duration = duration * 1000;
     _startTime = micros();
     ST1.write(speed);
     ST2.write(speed);
+}
+
+void Drive::drive(unsigned int power1, unsigned int power2, unsigned long duration)
+{
+    _duration = duration * 1000;
+    _startTime = micros();
+    ST1.write(power1);
+    ST2.write(power2);
 }
 
 void Drive::update()
 {
     encoderLeft.update();
     encoderRight.update();
-    if(_duration > 0 && ((micros()-_startTime) > _duration*(unsigned long)1000))
+    if(_duration > 0 && ((micros()-_startTime) > _duration))
     {
-        Serial.println("Stopping");
+        //Serial.println("Stopping");
         ST1.write(stopPower);
         ST2.write(stopPower);
         _duration = 0;
     }
 }
 
-double Drive::getDistance()
+uint32_t Drive::getDistance()
 {
-    return (encoderRight.getDistance() + encoderLeft.getDistance())/2;
+    return (encoderRight.getDistance() + encoderLeft.getDistance());
 }

@@ -34,6 +34,7 @@
 #ifndef QTRSensors_h
 #define QTRSensors_h
 #include <stdint.h>
+#include "drive.h"
 
 #define QTR_EMITTERS_OFF 0
 #define QTR_EMITTERS_ON 1
@@ -131,7 +132,7 @@ class QTRSensors
     ~QTRSensors();
 
     QTRSensors(unsigned char* pins, unsigned char numSensors,
-          unsigned int timeout = 4000, unsigned char emitterPin = 255);
+          unsigned int timeout = 4000, unsigned char emitterPin = 255, Drive *driver = 0);
 
     void init(unsigned char *pins, unsigned char numSensors, unsigned char emitterPin);
 
@@ -162,6 +163,8 @@ class QTRSensors
 
     unsigned char debug = 0;
 
+    uint16_t low_values[8] = {0,0,0,0,0,0,0,0};
+
     unsigned char *_pins;
     unsigned char _numSensors;
     unsigned char _emitterPin;
@@ -171,6 +174,8 @@ class QTRSensors
     unsigned int *_position;
     unsigned char _white_line = 0;
     unsigned char step=0;
+
+    Drive *_driver = 0;
 
 };
 #endif

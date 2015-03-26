@@ -18,15 +18,16 @@
  *    reliable defaults, so we need to have the user set them.
  ***************************************************************************/
 PID::PID(double* Input, double* Output, double* Setpoint,
-        double Kp, double Ki, double Kd, int ControllerDirection)
+        double Kp, double Ki, double Kd, int ControllerDirection, int limitLow, int limitHigh, double *weigth)
 {
 	
     myOutput = Output;
     myInput = Input;
     mySetpoint = Setpoint;
+    myWeigth = weigth;
 	inAuto = false;
 	
-	PID::SetOutputLimits(-256, 255);				//default output limit corresponds to 
+	PID::SetOutputLimits(limitLow, limitHigh);				//default output limit corresponds to 
 												//the arduino pwm limits
 
     SampleTime = 1;							//default Controller Sample Time is 0.1 seconds
@@ -34,7 +35,8 @@ PID::PID(double* Input, double* Output, double* Setpoint,
     PID::SetControllerDirection(ControllerDirection);
     PID::SetTunings(Kp, Ki, Kd);
 
-    lastTime = millis()-SampleTime;				
+    //lastTime = millis()-SampleTime;				
+    lastTime = micros()-SampleTime;				
 }
  
  
@@ -47,7 +49,8 @@ PID::PID(double* Input, double* Output, double* Setpoint,
 bool PID::Compute()
 {
    if(!inAuto) return false;
-   unsigned long now = millis();
+   //unsigned long now = millis();
+   unsigned long now = micros();
    unsigned long timeChange = (now - lastTime);
    if(timeChange>=SampleTime)
    {
@@ -60,7 +63,7 @@ bool PID::Compute()
       double dInput = (input - lastInput);
  
       /*Compute PID Output*/
-      double output = kp * error + ITerm- kd * dInput;
+      double output = kp * error * *myWeigth + ITerm- kd * dInput * *myWeigth;
       
 	  if(output > outMax) output = outMax;
       else if(output < outMin) output = outMin;

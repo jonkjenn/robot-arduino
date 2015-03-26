@@ -5,6 +5,8 @@
 #include <stdio.h>
 #include "drive.h"
 
+int16_t GetMedian(int16_t *daArray,int size);
+
 namespace bachelor{
 
 class LineFollower{
@@ -46,34 +48,59 @@ class LineFollower{
         Servo ST1,ST2;//ST1 left motor, ST2 right motor
 
         //unsigned int preCalibratedMin[] = {800, 588, 488, 532, 536, 536, 580, 812};
-        uint16_t preCalibratedMin[8] = {1796, 1272, 1072, 1036, 1188, 1152, 1232, 1880};
+        uint16_t preCalibratedMin[8] = {750, 550, 500, 500, 450, 400, 400, 450};
         uint16_t preCalibratedMax[8] = {2500,2500,2500,2500,2500,2500,2500,2500};
 
-        double pid_SetPoint,pid_Input,pid_Output;
-        double aggKp=10, aggKi=0.4, aggKd=1.25;
-        double consKp=0.1, consKi=0.0, consKd=0.0;
-        PID *myPID;
+        double out_pid_SetPoint,out_pid_Input,out_pid_Output;
+        double out_consKp=1.0, out_consKi=0.0, out_consKd=0.0, out_pid_weight = 1.0;
+        double inn_pid_SetPoint,inn_pid_Input,inn_pid_Output;
+        double inn_consKp=2.0, inn_consKi=0.0, inn_consKd=0.0, inn_pid_weight = 1.0;
+        PID *outerPID;
+        PID *innerPID;
 
-        unsigned int maxPower = 120;
+        unsigned int maxPower = 160;
         unsigned int stopPower = 90;//stand still
-        unsigned int minPower = 70;
+        unsigned int minPower = 20;
         unsigned int power_range = maxPower - minPower;
 
         void do_turn(int direction);
 
-        int previous_position = -1;
-        unsigned int position = 0;
+        uint16_t previous_position = 0;
+        uint16_t position = 0;
 
         unsigned int previous_update = 0;
 
         Drive *_driver;
 
-        const int debug = 0;
+        const uint8_t debug = 1;
         int result_ready = -1;
+
+        uint8_t startpos_count = 0;
+        bool collected_startpos = false;
+
+        const uint16_t ir_width = 65; //65mm, 65000um
+
+        const float ir_modifier = ir_width/7.0; //0-7000 being the position value range, reduced to 7 because ir_width is mm
+
+        const uint16_t ir_center = 3500;
+        
+        int16_t dist_center = 0;
+        int16_t prev_dist_center = 0;
+        int16_t delta_dist_center = 0;
+        uint32_t diff= 0;
+
+        int16_t sum_delta_dist = 0;
+
+        uint8_t stopcount = 0;
+
+        int leftright = 0;
+
+        int16_t prev_delta[4] = {0,0,0,0};
+        int16_t part_tmp[4] = {0,0,0,0};
 
         public:
             void update();
-            void setup(unsigned int ST1_pin, unsigned int ST2_pin, Drive *driver);
+            void setup(Drive *driver);
 };
 
 }

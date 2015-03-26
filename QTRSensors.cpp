@@ -334,15 +334,19 @@ void QTRSensors::HandleReadCalibratedResults()
 
     }
 
-    if(ctest%100==0){
+
+
+     /*if(ctest%1==0){
         for(int i=0;i<_numSensors;i++)
         {
-            Serial.print(String(_sensor_values[i]) + " ");
+            Serial.print(String(_sensor_values[i]));
+            Serial.print('\t');
         }
-        Serial.println(" ");
-    }
+        Serial.println();
+    }*/
 
-    if(step){step = 5;}
+    //if(step){step = 5;}
+    HandleReadLineResults();
 
 }
 
@@ -381,7 +385,6 @@ void QTRSensors::readLine(uint16_t *sensor_values,
 
     readCalibrated(readMode);
 }
-uint16_t on_line = 0;
 
 unsigned long hravg; // this is for the weighted total, which is long
                    // before division
@@ -390,24 +393,24 @@ uint16_t hrlast_value=0; // assume initially that the line is left.
 
 void QTRSensors::HandleReadLineResults()
 {
-
+    bool on_line = false;
     hravg = 0;
     hrsum = 0;
     uint16_t value = 0;
 
-    for(char i=0;i<_numSensors;i++) {
+    for(uint8_t i=0;i<_numSensors;i++) {
         value = _sensor_values[i];
         if(_white_line)
             value = 1000-value;
 
         // keep track of whether we see the line at all
         if(value > 200) {
-            on_line = 1;
+            on_line = true;
         }
 
         // only average in values that are above a noise threshold
-        if(value > 50) {
-            hravg += (long)(value) * (i * 1000);
+        if(value > 100) {
+            hravg += (unsigned long)(value) * (unsigned long)(i * 1000);
             hrsum += value;
         }
     }
@@ -427,18 +430,21 @@ void QTRSensors::HandleReadLineResults()
         hrlast_value = hravg/hrsum;
     }
 
+    //Serial.println(hrlast_value);
+
     *_position = hrlast_value;
     *_result_ready = 1;
 }
 
 QTRSensors::QTRSensors(unsigned char* pins,
-  unsigned char numSensors, unsigned int timeout, unsigned char emitterPin)
+  unsigned char numSensors, unsigned int timeout, unsigned char emitterPin, Drive *driver)
 {
     calibratedMinimumOn = 0;
     calibratedMaximumOn = 0;
     calibratedMinimumOff = 0;
     calibratedMaximumOff = 0;
     _pins = 0;
+    _driver = driver;
 
     init(pins, numSensors, timeout, emitterPin);
 }
@@ -500,8 +506,9 @@ void QTRSensors::readPrivate()
     PORTA = B11111111;//Set set register A ports to HIGH
     //pinMode(22,OUTPUT);
     //digitalWrite(22,HIGH);
+    readPrivate_start =micros();
 
-    delayMicroseconds(10);// charge lines for 10 us
+    delayMicroseconds(5);// charge lines for 10 us
 
     readPrivate2();
     //if(debug){Serial.println("readPrivate duration: " + String(micros() - start));}
@@ -524,27 +531,29 @@ void QTRSensors::readPrivate2()
     }*/
 
     step = 2;
-    readPrivate_start = micros();
     readPrivate3();
 }
 
 unsigned long rpt3 = 0;
-//int ctest = 0;
+int ftest = 0;
 void QTRSensors::readPrivate3()
 {
+    ftest++;
     //Serial.println("PINA: " + String(PINA));
-    rpt3 = micros() - readPrivate_start;
+    //rpt3 = micros() - readPrivate_start;
+    readPrivate_start = micros();
+    rpt3 = 0;
     //unsigned long start_readrprivate3 = micros();
     //if(debug){Serial.println("readPrivate3 time1 "); Serial.println(time);}
     //if(debug){Serial.println("readPrivate3 time2 "); Serial.println(time);}
-    if (rpt3 < _maxValue)
+    uint8_t completed = 0;
+    do
     {
-        uint8_t completed = 0;
         for (int i = 0; i < _numSensors; i++)
         {
             //if (digitalRead(_pins[i]) == LOW && time < sensor_values[i])
             //Serial.println(PINA);
-            if (bitRead(PINA,i) == 0 && rpt3 < _sensor_values[i])
+            if (_sensor_values[i] == calibratedMaximumOn[i] && bitRead(PINA,i) == 0 && rpt3 < _sensor_values[i])
             {
                 //if(debug){Serial.println("Sensors i:" + String(i) + " Time: " + String(time));}
 
@@ -554,26 +563,59 @@ void QTRSensors::readPrivate3()
             }
             //if(debug){Serial.println("pina:"  + String(PINA) + " pin: " + String(bitRead(PINA,i)) + " sv: " + String(sensor_values[i]));}
         }
-        if(completed == _numSensors){Serial.println("All complete");}
-    }
-    else
+        //Serial.println("ns: " + String((int)_numSensors) + " com:" + String(completed));
+        if(completed == _numSensors){break;}
+        if(_driver != NULL){_driver->update();}
+        rpt3 = micros() - readPrivate_start;
+    }while(rpt3 <_maxValue);
+
+    /*if(ftest%1==0)
+    //if(_sensor_values[0]>950)
     {
- /*       ctest++;
+        Serial.println(rpt3);
+        for(int i=0;i<_numSensors;i++)
+        {
+            Serial.print(_sensor_values[i]);
+            Serial.print('\t');
+        }
+        Serial.println();
+    }*/
+    /*else
+    {
+       ctest++;
         if(ctest%100 ==0){
             for(int i=0;i<_numSensors;i++)
             {
                 Serial.print(String(_sensor_values[i]) + " ");
             }
             Serial.println(" ");
-        }*/
+        }
         step = 3;
+    }*/
+    if(debug)
+    {
+        for(int i=0;i<_numSensors;i++)
+        {
+            if(_sensor_values[i] < 2500 && _sensor_values[i] > low_values[i])
+            {
+                low_values[i] = _sensor_values[i];
+
+                for(int j=0;j<_numSensors;j++)
+                {
+                    Serial.print(low_values[j]);
+                    Serial.print(" ");
+                }
+                    Serial.println("");
+            }
+        }
     }
     //if(debug){Serial.println("readPrivate3 internal time: " + String(micros() - start_readrprivate3));}
+    step = 3;
 }
 
 void QTRSensors::update()
 {
-    //unsigned long start = micros();
+    unsigned long start = micros();
     switch(step)
     {
         case 1:
@@ -591,6 +633,7 @@ void QTRSensors::update()
         case 4:
             HandleReadCalibratedResults();
             //if(debug){Serial.println("case 4, duration : " + String(micros() - start));}
+            //Serial.println(micros()-start);
             break;
         case 5:
             HandleReadLineResults();
