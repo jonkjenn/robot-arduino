@@ -3,6 +3,8 @@
 void Encoder::setup(unsigned char pinA, unsigned char pinB) {
     _pinA = pinA;
     _pinB = pinB;
+
+    prevTime = micros();
     //pinMode(_pinA,INPUT);
     //pinMode(_pinB,INPUT);
     DDRC &= B11110000;
@@ -50,6 +52,13 @@ void Encoder::update() {
     encBoutprev = encBout;
 
     counter++;
+
+     /*
+      *
+      * uMeter / uSeconds = m/s
+      *
+      * */
+    speed = (float)getDistance()/(micros()-prevTime);
     /*Serial.print(encAout);
     Serial.print(" ");
     Serial.print(encBout);
@@ -62,6 +71,13 @@ void Encoder::update() {
     }*/
 }
 
+
+//m/s
+float  Encoder::getSpeed()
+     {
+         return speed;
+     }
+
 //Returns distance in micrometer
 uint32_t Encoder::getDistance()
 {
@@ -70,14 +86,19 @@ uint32_t Encoder::getDistance()
     {
         //val = fDist/64.0/18.75 * PI * WHEEL_SIZE;
         val = fDist*distance_modifier;
-        fDist = 0;
     }
     else
     {
         //val = -bDist/64.0/18.75 * PI * WHEEL_SIZE;
         val = fDist*distance_modifier;
-        bDist = 0;
     }
 
     return val;
+}
+
+void Encoder::reset()
+{
+    prevTime = micros();
+    fDist = 0;
+    bDist = 0;
 }

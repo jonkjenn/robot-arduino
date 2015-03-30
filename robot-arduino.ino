@@ -29,21 +29,20 @@ void parsepacket()
         switch(serial->packet_buffer[0])
         {
             case Arduinocomm::DRIVE_DURATION:
-                //serial->sendcustombyte(55);
                 serial->writeok();
-                //serial->sendcustombyte(serial->packet_buffer[1]);
-                //serial->sendcustombyte(serial->packet_buffer[2]);
-                /*serial->sendcustombyte(serial->packet_buffer[3]);
-                serial->sendcustombyte(serial->packet_buffer[4]);
-                serial->sendcustombyte(serial->packet_buffer[5]);
-                serial->sendcustombyte(serial->packet_buffer[3]);
-                serial->sendcustombyte(serial->packet_buffer[4]);
-                serial->sendcustombyte(serial->packet_buffer[5]);*/
-                driver.driveForward(serial->packet_buffer[1],serial->read_uint32(serial->packet_buffer,2));               
+                driver.driveDuration(serial->packet_buffer[1],serial->read_uint32(serial->packet_buffer,2), driveCompletedCallback);
+            case Arduinocomm::DRIVE_DISTANCE:
+                serial->writeok();
+                driver.driveDistance(serial->packet_buffer[1],serial->read_uint32(serial->packet_buffer,2), driveCompletedCallback);
             break;
         }
     }
     serial->packet_ready = false;
+}
+
+void driveCompletedCallback()
+{
+    serial->writeDriveCompleted();
 }
 
 void setup()

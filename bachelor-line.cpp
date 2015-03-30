@@ -99,8 +99,7 @@ void LineFollower::update()
     {
         if(stopcount>20){
             Serial.println("Stopped");
-            _driver->ST1.write(stopPower);
-            _driver->ST2.write(stopPower);
+            _driver->stop();
             previous_position = position;
             return;
         }

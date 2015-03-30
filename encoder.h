@@ -30,10 +30,19 @@ class Encoder{
         const float WHEEL_SIZE = 0.124;
         const float distance_modifier  = (PI*WHEEL_SIZE)/(64.0*18.75)*1000.0*1000.0;//uMeter
 
+        uint32_t prevTime;
+        uint32_t time;
+
+        float speed;
+
+        float updateSpeed();
+
     public:
         void setup(unsigned char pinA, unsigned char pinB);
         void update();
         uint32_t getDistance();
+        float getSpeed();
+        void reset();
 };
 
 #endif
