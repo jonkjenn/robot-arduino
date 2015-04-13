@@ -1,66 +1,45 @@
 #include "arduinocomm.h"
 using namespace std;
 
-#ifndef __AVR_ATmega2560__
-using namespace serial;
-#endif
-
-
 Arduinocomm::Arduinocomm()
 {
-    
-#ifdef __AVR_ATmega2560__
-    Serial.begin(57600);
-#else
-    mSerial = unique_ptr<Serial>(new Serial("/dev/ttyACM0",57600,Timeout::simpleTimeout(100)));
-    /*serialstream.SetBaudRate(SerialStreamBuf::BAUD_115200);
-    serialstream.SetCharSize(SerialStreamBuf::CHAR_SIZE_8);
-    serialstream.SetNumOfStopBits(1);
-    serialstream.SetParity(SerialStreamBuf::PARITY_NONE);
-    serialstream.SetFlowControl(SerialStreamBuf::FLOW_CONTROL_NONE);
-    serialstream.Open("/dev/ttyACM0");*/
-#endif
 }
 
 void Arduinocomm::update()
 {
-    if(input_position >= input_size){
+    if(input_position >= this->input_size){
         input_position = 0; 
-        input_size = 0;
-#ifdef __AVR_ATmega2560__
-        if(Serial.available() > 0)
+        this->input_size = 0;
+        while(Serial.available() > 0)
         {
             //sendcustombyte((uint8_t)Serial.available());
-            unsigned int ret = Serial.readBytes(input_buffer,Serial.available());
-            if(ret>0){input_size = ret; process();}
-        }
-#else
-        //LOG(DEBUG) << "Checking for data, available: " << mSerial->available();
-        if(mSerial->available() > 0)
-        {
-            //LOG(DEBUG) << "Reading";
-            unsigned int ret = mSerial->read((uint8_t *)input_buffer,MAX_BUFFER);
+            //byte ret = Serial.readBytes(input_buffer,min(Serial.available(),MAX_BUFFER));
+            //sendcustombyte(ret);
+            //serial_count++;
+            //if(ret>0){this->input_size = ret; process();}
+            int val = Serial.read();
+            if(val>0)
+                { input_buffer[0] = val;}
+            this->input_size = 1;
 
-            //LOG(DEBUG) << "ret: " << ret << endl;
-
-            if(ret>0){input_size = ret;process();}
+            process();
         }
-#endif
     }
-    else{process();}
+    else if(this->input_size > 0){
+        process();
+    }
 }
 
 void Arduinocomm::process()
 {
-    uint8_t val;
-    while(input_position < input_size)
+    uint8_t val = 0;
+    //sendcustombyte(this->input_size);
+    while(input_position < this->input_size)
     {
         val = input_buffer[input_position];
+        //sendcustombyte(val);
         if(val > 127)//Command
         {
-#ifndef __AVR_ATmega2560__
-            LOG(DEBUG) << "command:"  << (int)val;
-#endif
             switch(val)
             {
                 case START_DATA:
@@ -69,21 +48,14 @@ void Arduinocomm::process()
                     reading_packet = true;
                     packet_size = 0;
                     input_position++;
-#ifndef __AVR_ATmega2560__
-                    LOG(DEBUG) << "Got packet start";
-#endif
+                    //sendcustombyte(input_position);
                     continue;
                 case END_DATA:
-#ifndef __AVR_ATmega2560__
-                    LOG(DEBUG) << "Got packet end";
 
-#endif
                     for(int i=0;i<packet_position;i+=2)
                     {
                         packet_buffer[i/2] = readbyte(i);
-#ifndef __AVR_ATmega2560__
-                        LOG(DEBUG) << "i: " << i/2 << " p: " << (unsigned int)packet_buffer[i/2];
-#endif
+                        sendcustombyte(packet_buffer[i/2]);
                     }
 
                     if(reading_packet)
@@ -95,10 +67,7 @@ void Arduinocomm::process()
                     input_position++;
                     return;
                 default:
-#ifndef __AVR_ATmega2560__
-                    LOG(DEBUG) << "Corrupted packet?";
-#endif
-                    sendcustombyte(22);
+                    //sendcustombyte(22);
 
                     packet_position = 0;
                     packet_ready = false;
@@ -109,15 +78,12 @@ void Arduinocomm::process()
         }
         else
         {
-#ifndef __AVR_ATmega2560__
-            //LOG(DEBUG) << "raw val: " << (int)input_buffer[input_position];
-#endif
-#ifdef __AVR_ATmega2560__
-            //sendcustombyte(input_buffer[input_position]);
-#endif
             if(reading_packet)
             {
-                temp_buffer[packet_position] = input_buffer[input_position];
+                //if(val == 2){sendcustombyte(val);}
+                //sendcustombyte(val);
+                temp_buffer[packet_position] = val;
+                //if(val == 2){temp_buffer[packet_position];}
                 packet_position++;
                 input_position++;
             }
@@ -135,7 +101,7 @@ uint8_t Arduinocomm::readbyte(unsigned int position)
     return temp_buffer[position] + (temp_buffer[position+1] << 7);
 }
 
-uint16_t Arduinocomm::read_uint16(uint8_t (&packet)[MAX_BUFFER], unsigned int position)
+/*uint16_t Arduinocomm::read_uint16(uint8_t (&packet)[MAX_BUFFER], unsigned int position)
 {
     return packet[position] + (packet[position+1] << 8);
 }
@@ -143,37 +109,20 @@ uint16_t Arduinocomm::read_uint16(uint8_t (&packet)[MAX_BUFFER], unsigned int po
 uint32_t Arduinocomm::read_uint32(uint8_t (&packet)[MAX_BUFFER], unsigned int position)
 {
     return packet[position] + (packet[position+1] << 8) + (packet[position+2] << 16) + (packet[position+3] << 24);
-}
-
-#ifdef __AVR_ATmega2560__
+}*/
 
 void Arduinocomm::writecommand(uint8_t byte)
 {
     Serial.write(byte);
+    Serial.flush();
 }
 //Writes 1 byte as 2 bytes, converting from 8-bit to 7-bit packing.
 void Arduinocomm::writebyte(uint8_t byte)
 {
     Serial.write(byte & 0x7F);
     Serial.write((byte & 0x80) >> 7);
+    Serial.flush();
 }
-#else
-void Arduinocomm::writecommand(uint8_t byte)
-{
-    mSerial->write(&byte,1);
-}
-
-//Writes 1 byte as 2 bytes, converting from 8-bit to 7-bit packing.
-void Arduinocomm::writebyte(uint8_t byte)
-{
-    uint8_t bytes[2] = {0,0};
-    bytes[0] =  byte & 0x7F;
-    bytes[1] = (byte & 0x80) >> 7;
-    int written = mSerial->write(bytes,2);
-    LOG(DEBUG) << "Written: " << written;
-    LOG(DEBUG) << "Writebyte: " << (unsigned int)bytes[0] << ", " << (unsigned int)bytes[1];
-}
-#endif
 
 void Arduinocomm::writeuint32(uint32_t value)
 {
@@ -191,43 +140,9 @@ void Arduinocomm::sendcustombyte(uint8_t byte)
     writecommand(END_DATA);
 }
 
-#ifdef __AVR_ATmega2560__
 void Arduinocomm::writeok()
 {
     writecommand(START_DATA);
     writebyte(OK);
     writecommand(END_DATA);
 }
-
-void Arduinocomm::writeDriveCompleted()
-{
-    writecommand(START_DATA);
-    writebyte(DRIVE_COMPLETED);
-    writecommand(END_DATA);
-}
-
-#endif
-
-#ifndef __AVR_ATmega2560__
-//speed from 0-180, duration in milliseconds
-void Arduinocomm::driveDuration(uint8_t speed, uint32_t duration)
-{
-    LOG(DEBUG) << "Sending drive duration" << endl;
-    writecommand(START_DATA);
-    writebyte(DRIVE_DURATION);
-    writebyte(speed);
-    writeuint32(duration);
-    writecommand(END_DATA);
-}
-//
-//speed from 0-180, duration in milliseconds
-void Arduinocomm::driveDistance(uint8_t speed, uint32_t distance)
-{
-    LOG(DEBUG) << "Sending drive distance" << endl;
-    writecommand(START_DATA);
-    writebyte(DRIVE_DISTANCE);
-    writebyte(speed);
-    writeuint32(distance);
-    writecommand(END_DATA);
-}
-#endif
