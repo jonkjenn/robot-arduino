@@ -18,7 +18,7 @@ void Arduinocomm::update()
             //serial_count++;
             //if(ret>0){this->input_size = ret; process();}
             int val = Serial.read();
-            if(val>0)
+            if(val>=0)
                 { input_buffer[0] = val;}
             this->input_size = 1;
 
@@ -55,7 +55,7 @@ void Arduinocomm::process()
                     for(int i=0;i<packet_position;i+=2)
                     {
                         packet_buffer[i/2] = readbyte(i);
-                        sendcustombyte(packet_buffer[i/2]);
+                        //sendcustombyte(packet_buffer[i/2]);
                     }
 
                     if(reading_packet)
@@ -81,7 +81,6 @@ void Arduinocomm::process()
             if(reading_packet)
             {
                 //if(val == 2){sendcustombyte(val);}
-                //sendcustombyte(val);
                 temp_buffer[packet_position] = val;
                 //if(val == 2){temp_buffer[packet_position];}
                 packet_position++;
@@ -132,6 +131,13 @@ void Arduinocomm::writeuint32(uint32_t value)
     writebyte((value >> 24) & 0x000000FF);
 }
 
+void Arduinocomm::writeuint16(uint16_t value)
+{
+    writebyte(value & 0x000000FF);
+    writebyte((value >> 8) & 0x000000FF);
+    writebyte((value >> 16) & 0x000000FF);
+}
+
 void Arduinocomm::sendcustombyte(uint8_t byte)
 {
     writecommand(START_DATA);
@@ -144,5 +150,13 @@ void Arduinocomm::writeok()
 {
     writecommand(START_DATA);
     writebyte(OK);
+    writecommand(END_DATA);
+}
+
+void Arduinocomm::write_line_position(uint16_t position)
+{
+    writecommand(START_DATA);
+    writebyte(LINE_POSITION);
+    writeuint16(position);
     writecommand(END_DATA);
 }

@@ -10,7 +10,9 @@ class Arduinocomm{
         static const uint8_t END_DATA = 0xFF;
 
         void writebyte(uint8_t);
+        void writeuint16(uint16_t value);
         void writeuint32(uint32_t);
+        void write_line_position(uint16_t position);
         uint8_t readbyte(unsigned int position);
         static const uint16_t MAX_BUFFER = 25;
         uint8_t input_buffer[MAX_BUFFER];
@@ -53,6 +55,7 @@ class Arduinocomm{
         static const uint8_t DEBUG = 0x03;
         static const uint8_t DRIVE_DISTANCE = 0x04;//Drive straight for duration
         static const uint8_t DRIVE_COMPLETED = 0x05;//Drive straight for duration
+        static const uint8_t LINE_POSITION = 0x06;//Drive straight for duration
 
 };
 
