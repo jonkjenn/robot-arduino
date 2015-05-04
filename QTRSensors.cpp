@@ -268,45 +268,15 @@ void QTRSensors::HandleReadCalibratedResults()
 
     ctest++;
 
-    /*if(ctest%100==0){
-        for(int i=0;i<_numSensors;i++)
-        {
-            Serial.print(String(_sensor_values[i]) + " ");
-        }
-        Serial.println("");
-    }*/
+    bool max_values[_numSensors];
+    uint8_t max_count = 0;
 
     for(int i=0;i<_numSensors;i++)
     {
-        // find the correct calibration
-        //if(_readMode == QTR_EMITTERS_ON)
-        //{
         calmax = calibratedMaximumOn[i];
         calmin = calibratedMinimumOn[i];
-        //}
-        /*
-        else if(_readMode == QTR_EMITTERS_OFF)
-        {
-            calmax = calibratedMaximumOff[i];
-            calmin = calibratedMinimumOff[i];
-        }
-        else // QTR_EMITTERS_ON_AND_OFF
-        {
-
-            if(calibratedMinimumOff[i] < calibratedMinimumOn[i]) // no meaningful signal
-                calmin = _maxValue;
-            else
-                calmin = calibratedMinimumOn[i] + _maxValue - calibratedMinimumOff[i]; // this won't go past _maxValue
-
-            if(calibratedMaximumOff[i] < calibratedMaximumOn[i]) // no meaningful signal
-                calmax = _maxValue;
-            else
-                calmax = calibratedMaximumOn[i] + _maxValue - calibratedMaximumOff[i]; // this won't go past _maxValue
-        }*/
 
         denominator = calmax - calmin;
-
-        //Serial.println("Sv: " + String(sensor_values[i]));
 
         if(denominator != 0)
         {
@@ -321,29 +291,67 @@ void QTRSensors::HandleReadCalibratedResults()
         }
 
         if(x > 1000)
+        {
             x = 1000;
+        }
+
+        if(x == 1000)
+        {
+            max_values[i] = 1;
+            max_count++;
+        }
+
         _sensor_values[i] = x;
+    }
+    
+    if(false && max_count > 0)
+    {
 
-        //Serial.println("s");
-        //Serial.println(i);
-        //Serial.println(x);
+        uint16_t max_sum = 0;
+        uint8_t max_sum_index_start = 0;
+        uint8_t max_sum_index_stop = 0;
+        //To avoid noise we only want to look at those sensors near the black line
+        //We find the 4 sensors with the largest values and asume the line is within those
+        for(uint8_t i=3;i<_numSensors;i++)
+        {
+            uint16_t sum = _sensor_values[i] + _sensor_values[i-1] + _sensor_values[i-2] + _sensor_values[i-3];        
+            if(sum>max_sum){
+                max_sum = sum; 
+                max_sum_index_start = i-3;
+                max_sum_index_stop = i;
+            }
+        }
 
+        //If at start or end we might want to look at only 3 values
+        if(max_sum_index_start == 0 && (max_values[0] == 1 || max_values[1] == 1))
+        {
+            max_sum_index_stop = 2;
+        }
+        else if(max_sum_index_start == _numSensors-5 && (max_values[_numSensors-1] == 1 || max_values[_numSensors-2] == 1))
+        {
+            max_sum_index_start = _numSensors -3;
+        }
+
+        for(uint8_t i=0;i<_numSensors;i++)
+        {
+            if(i<max_sum_index_start || i> max_sum_index_stop)
+            {
+                _sensor_values[i] = 0;
+            }
+        }
     }
 
-
-
-     if(ctest%100==0){
+/*     if(ctest%100==0){
         for(int i=0;i<_numSensors;i++)
         {
             Serial.print(String(_sensor_values[i]));
             Serial.print('\t');
         }
         Serial.println();
-    }
+    }*/
 
     //if(step){step = 5;}
     HandleReadLineResults();
-
 }
 
 
@@ -413,6 +421,7 @@ void QTRSensors::HandleReadLineResults()
 
     if(!on_line)
     {
+        if(debug_output){Serial.println("Not on line");Serial.println("Last value:" ); Serial.println(hrlast_value);}
         // If it last read to the left of center, return 0.
         if(hrlast_value < (_numSensors-1)*500)
             hrlast_value = 0;
@@ -551,17 +560,9 @@ int ftest = 0;
 void QTRSensors::readPrivate3()
 {
     ftest++;
-    //Serial.println("PINA: " + String(PINA));
-    //rpt3 = micros() - readPrivate_start;
     readPrivate_start = micros();
     rpt3 = 0;
     
-    //Serial.println("maxvalue");
-    //Serial.println(_maxValue);
-
-    //unsigned long start_readrprivate3 = micros();
-    //if(debug){Serial.println("readPrivate3 time1 "); Serial.println(time);}
-    //if(debug){Serial.println("readPrivate3 time2 "); Serial.println(time);}
     uint8_t completed = 0;
     do
     {
@@ -577,47 +578,42 @@ void QTRSensors::readPrivate3()
                 PIN = PINB;
             }
 
-            //Serial.print((PIN >> _pins[i]) & 1);
-            //Serial.print(" ");
-
-            //
-            //if (digitalRead(_pins[i]) == LOW && time < sensor_values[i])
             if (_sensor_values[i] == calibratedMaximumOn[i] && bitRead(PIN,_pins[i]) == 0 && rpt3 < _sensor_values[i])
             {
-                //if(debug){Serial.println("Sensors i:" + String(i) + " Time: " + String(time));}
-
-                //Serial.println("rpt3");
-                //Serial.println(rpt3);
                 _sensor_values[i] = rpt3;
                 completed++;
             }
-            //if(debug){Serial.println("pina:"  + String(PINA) + " pin: " + String(bitRead(PINA,i)) + " sv: " + String(sensor_values[i]));}
         }
-        //Serial.println("ns: " + String((int)_numSensors) + " com:" + String(completed));
-        //Serial.println();
-        /*Serial.println();
-        Serial.println("rpt3:");
-        Serial.println(rpt3);
-        Serial.println("maxvalue:");
-        Serial.println(_maxValue);
-        Serial.println("micros");
-        Serial.println(micros());
-        Serial.println("readprivate start");
-        Serial.println(readPrivate_start);*/
+
         if(completed == _numSensors){break;}
-        //if(_driver != NULL){_driver->update();}
         rpt3 = micros() - readPrivate_start;
-        //Serial.println("rpt3");
-        //Serial.println(rpt3);
     }while(rpt3 <_maxValue);
 
-    /*if(ctest%100 ==0){
+    if(debug_output)
+    {
         for(int i=0;i<_numSensors;i++)
         {
-            Serial.print(String(_sensor_values[i]) + " ");
+            //if(_sensor_values[i] > calibratedMaximumOn[i]){calibratedMaximumOn[i] = _sensor_values[i];}
+            //if(_sensor_values[i] < calibratedMinimumOn[i]){calibratedMinimumOn[i] = _sensor_values[i];}
+            Serial.print(_sensor_values[i]);
+            Serial.print('\t');
         }
-        Serial.println(" ");
-    }*/
+        /*Serial.println();
+        Serial.println("Max");
+        for(int i=0;i<_numSensors;i++)
+        {
+            Serial.print(calibratedMaximumOn[i]);
+            Serial.print('\t');
+        }
+        Serial.println();
+        Serial.println("Min");
+        for(int i=0;i<_numSensors;i++)
+        {
+            Serial.print(calibratedMinimumOn[i]);
+            Serial.print('\t');
+        }*/
+        Serial.println();
+    }
 
     /*if(ftest%1==0)
     if(_sensor_values[0]>950)
@@ -669,6 +665,9 @@ void QTRSensors::readPrivate3()
     }*/
     //if(debug){Serial.println("readPrivate3 internal time: " + String(micros() - start_readrprivate3));}
     step = 3;
+    HandleReadComplete();//Turns emitters off and other stuff
+    HandleReadCalibratedResults();
+    HandleReadLineResults();
 }
 
 void QTRSensors::update()

@@ -12,7 +12,6 @@ class Arduinocomm{
         void writebyte(uint8_t);
         void writeuint16(uint16_t value);
         void writeuint32(uint32_t);
-        void write_line_position(uint16_t position);
         uint8_t readbyte(unsigned int position);
         static const uint16_t MAX_BUFFER = 25;
         uint8_t input_buffer[MAX_BUFFER];
@@ -29,13 +28,17 @@ class Arduinocomm{
         uint8_t input_size = 0;
 
         //void handlepacket(uint8_t (&packet)[MAX_BUFFER], uint8_t);
+        uint8_t CRC8(const uint8_t *data, uint8_t len, uint8_t start);
 
+        uint8_t *bytes = 0;
+        uint8_t byte_position = 0;
 
     public:
         byte debug = 0;
         void update();
         Arduinocomm();
-        void writeok();
+        void write_ok();
+        void write_line_position(uint16_t position);
         //void writeDriveCompleted();
         void stop();
         void sendcustombyte(uint8_t byte);

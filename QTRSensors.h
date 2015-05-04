@@ -139,6 +139,7 @@ class QTRSensors
           unsigned int timeout = 5000, unsigned char emitterPin = QTR_NO_EMITTER_PIN);
 
     void update();
+    int debug_output = 0;
 
   private:
 
@@ -165,7 +166,7 @@ class QTRSensors
     uint16_t low_values[8] = {0,0,0,0,0,0,0,0};
 
     unsigned char _pins[8] = {4,7,0,1,2,3,4,5}; //Hardcoded pins, must update code elsewhere with PIN etc to change
-    unsigned char _numSensors = 8;
+    const unsigned char _numSensors = 8;
     unsigned char _emitterPin;
     unsigned int _maxValue = 2500; // the maximum value returned by this function
     unsigned char _readMode;
