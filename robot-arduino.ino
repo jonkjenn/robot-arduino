@@ -1,7 +1,6 @@
 #include "Servo.h"
 #include "arduinocomm.h"
 #include "QTRSensors.h"
-#include "bachelor-line.h"
 
 using namespace std;
 Arduinocomm *serial;
@@ -16,8 +15,6 @@ const bool DEBUG_ROBOT_ARDUION = 0;
 Servo ST1, ST2; //ST1 left motor, ST2 right motor
 unsigned int max_sensor_timeout_ms = 2000;
 QTRSensors q {max_sensor_timeout_ms};
-
-LineFollower lineFollower;
 
 int debug = DEBUG_ROBOT_ARDUION;
 
@@ -80,7 +77,6 @@ void setup()
   serial = new Arduinocomm();
   serial->debug = DEBUG_SERIAL;
   q.debug_output = DEBUG_QTR_SENSORS;
-
 
   Serial.begin(115200);
   delay(100);
