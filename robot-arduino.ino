@@ -13,12 +13,12 @@ const bool DEBUG_SERIAL = 0;
 const bool DEBUG_ROBOT_ARDUION = 0;
 
 Servo ST1, ST2; //ST1 left motor, ST2 right motor
-unsigned int max_sensor_timeout_ms = 2000;
+unsigned int max_sensor_timeout_ms = 2500;
 QTRSensors q {max_sensor_timeout_ms};
 
 int debug = DEBUG_ROBOT_ARDUION;
 
-uint16_t preCalibratedMin[8]  = {1000 , 900, 650 , 750 , 750 , 700, 600, 820}; //{936, 756, 584, 628, 668, 668, 668, 950};//{936, 756, 584, 628, 668, 668, 668, 950};
+uint16_t preCalibratedMin[8]  = {1200 , 900, 900 , 900 , 900 , 750, 1000, 1050}; //{936, 756, 584, 628, 668, 668, 668, 950};//{936, 756, 584, 628, 668, 668, 668, 950};
 uint16_t preCalibratedMax[8]  = {max_sensor_timeout_ms, max_sensor_timeout_ms, max_sensor_timeout_ms, max_sensor_timeout_ms, max_sensor_timeout_ms, max_sensor_timeout_ms, max_sensor_timeout_ms, max_sensor_timeout_ms};
 uint16_t position = 0;
 int result_ready = -1;
@@ -84,7 +84,7 @@ void setup()
 
 void loop()
 {
-  Serial.println("loop");
+  //Serial.println("loop");
   count++;
   if (!wait_for_drive && result_ready < 0)
   {
